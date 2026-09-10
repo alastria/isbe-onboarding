@@ -1,0 +1,223 @@
+{{define "relyingparties"}}
+{{template "preamble" .}}
+
+<div class="w3-container" style="margin-bottom: 40px;">
+    <h2>CertAuth: Relying Parties</h2>
+    <p>
+        <button onclick="document.getElementById('createModal').style.display='block'"
+            class="w3-btn w3-blue w3-round-large">Add Relying Party</button>
+    </p>
+
+    <div class="w3-responsive w3-card-4">
+        <table class="w3-table-all">
+            <tr>
+                <th>Name</th>
+                <th>Client ID</th>
+                <th>RedirectURL</th>
+                <th>Scopes</th>
+                <th>Actions</th>
+
+            </tr>
+
+            {{range .rps}}
+            <tr>
+                <td>{{.Name}}</td>
+                <td>{{.ClientID}}</td>
+                <td>{{.RedirectURL}}</td>
+                <td>{{.Scopes}}</td>
+                <td>
+                    <div>
+                        <button onclick="openEditModal(
+                {
+                    id: '{{.ID}}',
+                    client_id: '{{.ClientID}}',
+                    name: '{{.Name}}',
+                    description: '{{.Description}}',
+                    redirect_url: '{{.RedirectURL}}',
+                    scopes: '{{.Scopes}}',
+                    token_expiry: '{{.TokenExpiry}}'
+                })" class="w3-btn w3-blue w3-padding-small margin-bottom-small w3-round-large w3-small w3-block">
+                            <b>Edit</b>
+                        </button>
+                        <button type="submit" class="w3-btn w3-red w3-padding-small w3-round-large w3-small w3-block"
+                            onclick="openDeleteModal(
+                {
+                    id: '{{.ID}}',
+                    client_id: '{{.ClientID}}',
+                    name: '{{.Name}}',
+                    description: '{{.Description}}',
+                    redirect_url: '{{.RedirectURL}}',
+                    scopes: '{{.Scopes}}',
+                    token_expiry: '{{.TokenExpiry}}'
+                })">
+                            <b>Delete</b>
+                        </button>
+                    </div>
+                </td>
+
+            </tr>
+            {{end}}
+
+        </table>
+    </div>
+</div>
+
+<script>
+    function openEditModal(data) {
+        // Set the form values
+        document.getElementById('edit_id').value = data.id;
+        document.getElementById('edit_client_id').value = data.client_id;
+        document.getElementById('edit_name').value = data.name;
+        document.getElementById('edit_description').value = data.description;
+        document.getElementById('edit_redirect_url').value = data.redirect_url;
+        document.getElementById('edit_scopes').value = data.scopes;
+        document.getElementById('edit_token_expiry').value = data.token_expiry;
+        // Display the modal dialog
+        document.getElementById('editModal').style.display = 'block';
+    }
+
+    function openDeleteModal(data) {
+        // Set the form values
+        document.getElementById('delete_id').value = data.id;
+        document.getElementById('delete_client_id').value = data.client_id;
+        document.getElementById('delete_name').value = data.name;
+        document.getElementById('delete_description').value = data.description;
+        // Display the modal dialog
+        document.getElementById('deleteModal').style.display = 'block';
+    }
+</script>
+
+<div id="createModal" class="w3-modal">
+    <div class="w3-modal-content w3-card-4" style="max-width:800px">
+
+        <div class="w3-center"><br>
+            <span onclick="document.getElementById('createModal').style.display='none'"
+                class="w3-button w3-xlarge w3-hover-red w3-display-topright" title="Close Modal">&times;</span>
+            <h3>Create Relying Party</h3>
+        </div>
+
+        <form class="w3-container" method="POST" action="/admin/relyingparties">
+            <div class="w3-section">
+                <input id="create_id" type="hidden" name="id">
+                <input id="create_action" type="hidden" name="action" value="create">
+                <label><b>Name</b></label>
+                <input id="create_name" class="w3-input w3-border w3-margin-bottom" type="text" placeholder="Short name"
+                    name="name" required>
+                <label><b>Description</b></label>
+                <input id="create_description" class="w3-input w3-border w3-margin-bottom" type="text"
+                    placeholder="Description" name="description">
+                <label><b>Client ID</b></label>
+                <input id="create_client_id" class="w3-input w3-border w3-margin-bottom" type="text"
+                    placeholder="Client ID" name="client_id" required>
+                <label><b>Client Secret</b></label>
+                <input id="create_client_secret" class="w3-input w3-border w3-margin-bottom" type="text"
+                    placeholder="Client Secret, leave empty to use PKCE" name="client_secret">
+                <label><b>Redirect URL</b></label>
+                <input id="create_redirect_url" class="w3-input w3-border w3-margin-bottom" type="text"
+                    placeholder="Redirect URL" name="redirect_url" required>
+                <label><b>Scopes</b></label>
+                <input id="create_scopes" class="w3-input w3-border" type="text"
+                    placeholder="List of scopes like 'openid eidas'" name="scopes" required>
+                <label><b>Token Expiry</b></label>
+                <input id="create_token_expiry" class="w3-input w3-border" type="number"
+                    placeholder="Token Expiry, default 3600 seconds" name="token_expiry">
+            </div>
+
+            <div class="w3-section w3-bar">
+                <button class="w3-button w3-round-large w3-blue" type="submit">Save Changes</button>
+                <button onclick="document.getElementById('createModal').style.display='none'" type="button"
+                    class="w3-right w3-button w3-round-large w3-red">Cancel</button>
+            </div>
+
+        </form>
+
+    </div>
+</div>
+
+<div id="editModal" class="w3-modal">
+    <div class="w3-modal-content w3-card-4" style="max-width:800px">
+
+        <div class="w3-center"><br>
+            <span onclick="document.getElementById('editModal').style.display='none'"
+                class="w3-button w3-xlarge w3-hover-red w3-display-topright" title="Close Modal">&times;</span>
+            <h3>Edit Relying Party</h3>
+        </div>
+
+        <form class="w3-container" method="POST" action="/admin/relyingparties">
+            <div class="w3-section">
+                <input id="edit_id" type="hidden" name="id">
+                <input id="edit_action" type="hidden" name="action" value="update">
+                <label><b>Name</b></label>
+                <input id="edit_name" class="w3-input w3-border w3-margin-bottom" type="text" placeholder="Short name"
+                    name="name" required>
+                <label><b>Description</b></label>
+                <input id="edit_description" class="w3-input w3-border w3-margin-bottom" type="text"
+                    placeholder="Description" name="description">
+                <label><b>Client ID</b></label>
+                <input id="edit_client_id" class="w3-input w3-border w3-margin-bottom" type="text"
+                    placeholder="Client ID" name="client_id" disabled>
+                <label><b>Client Secret</b></label>
+                <input id="edit_client_secret" class="w3-input w3-border w3-margin-bottom" type="text"
+                    placeholder="L  eave empty to use PKCE" name="client_secret">
+                <label><b>Redirect URL</b></label>
+                <input id="edit_redirect_url" class="w3-input w3-border w3-margin-bottom" type="text"
+                    placeholder="Redirect URL" name="redirect_url" required>
+                <label><b>Scopes</b></label>
+                <input id="edit_scopes" class="w3-input w3-border" type="text"
+                    placeholder="List of scopes like 'openid eidas'" name="scopes" required>
+                <label><b>Token Expiry</b></label>
+                <input id="edit_token_expiry" class="w3-input w3-border" type="number"
+                    placeholder="Token Expiry, default 3600 seconds" name="token_expiry">
+            </div>
+
+            <div class="w3-section w3-bar">
+                <button class="w3-button w3-round-large w3-blue" type="submit">Save Changes</button>
+                <button onclick="document.getElementById('editModal').style.display='none'" type="button"
+                    class="w3-right w3-button w3-round-large w3-red">Cancel</button>
+            </div>
+
+        </form>
+
+    </div>
+</div>
+
+<div id="deleteModal" class="w3-modal">
+    <div class="w3-modal-content w3-card-4" style="max-width:800px">
+
+        <div class="w3-center"><br>
+            <span onclick="document.getElementById('deleteModal').style.display='none'"
+                class="w3-button w3-xlarge w3-hover-red w3-display-topright" title="Close Modal">&times;</span>
+            <h3>Delete Relying Party</h3>
+        </div>
+
+        <form class="w3-container" method="POST" action="/admin/relyingparties">
+            <div class="w3-section">
+                <input type="hidden" name="id" id="delete_id">
+                <input id="delete_action" type="hidden" name="action" value="delete">
+                <label><b>Client ID</b></label>
+                <input id="delete_client_id" class="w3-input w3-border w3-margin-bottom" type="text"
+                    placeholder="Client ID" name="client_id" disabled>
+                <label><b>Name</b></label>
+                <input id="delete_name" class="w3-input w3-border w3-margin-bottom" type="text" placeholder="Short name"
+                    name="name" disabled>
+                <label><b>Description</b></label>
+                <input id="delete_description" class="w3-input w3-border w3-margin-bottom" type="text"
+                    placeholder="Description" name="description" disabled>
+
+                <h4>Are you sure you want to delete this relying party?</h4>
+            </div>
+
+            <div class="w3-section w3-bar">
+                <button class="w3-button w3-round-large w3-red" type="submit">Delete</button>
+                <button onclick="document.getElementById('deleteModal').style.display='none'" type="button"
+                    class="w3-right w3-button w3-round-large w3-red">Cancel</button>
+            </div>
+
+        </form>
+
+    </div>
+</div>
+
+
+{{template "postamble" .}}
+{{end}}

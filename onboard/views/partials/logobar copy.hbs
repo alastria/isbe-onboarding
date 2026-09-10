@@ -1,0 +1,148 @@
+<style>
+
+    body {
+        background-color: #f9f3e7
+    }
+
+    .column {
+        max-width: 800px;
+    }
+
+    /* Mobile */
+    @media only screen and (max-width: 767.98px) {
+        .header-bar {
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+            background-color: #ffffff;
+        }
+
+        .header-bar picture {
+            margin-right: 1rem;
+            height: 1.25rem;
+            width: auto;
+            flex-shrink: 0;
+        }
+
+        .header-bar img {
+            height: 1.25rem;
+            width: auto;
+        }
+
+    }
+
+    /* Tablet */
+    @media only screen and (min-width: 768px) and (max-width: 991.98px) {
+        .header-bar {
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+            background-color: #ffffff;
+        }
+
+        .header-bar picture {
+            margin-right: 1rem;
+            height: 1.25rem;
+            width: auto;
+            flex-shrink: 0;
+        }
+
+        .header-bar img {
+            height: 1.25rem;
+            width: auto;
+        }
+
+    }
+
+    /* Small Monitor */
+    @media only screen and (min-width: 992px) and (max-width: 1199.98px) {
+        .header-bar {
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+            background-color: #ffffff;
+        }
+
+        .header-bar picture {
+            margin-right: 1rem;
+            height: 1.25rem;
+            width: auto;
+            flex-shrink: 0;
+        }
+
+        .header-bar img {
+            height: 1.25rem;
+            width: auto;
+        }
+
+    }
+
+    /* Large Monitor */
+    @media only screen and (min-width: 1200px) {
+        .header-bar {
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+            background-color: #ffffff;
+        }
+
+        .header-bar picture {
+            margin-right: 1rem;
+            height: 1.25rem;
+            width: auto;
+            flex-shrink: 0;
+        }
+
+        .header-bar img {
+            height: 1.25rem;
+            width: auto;
+        }
+
+    }
+</style>
+
+
+<div class="header-bar">
+    <div class="ui container">
+
+        <div class="ui menu" style="margin:0px;border:0px">
+            <div class="item">
+                <picture style="margin-right:10rem;">
+                    <img src="/static/images/isbe_logo_image.svg" alt="nextgeneration" width="220" height="53"
+                        loading="lazy" />
+                    <img src="/static/images/isbe_logo_text.svg" alt="nextgeneration" width="220" height="53"
+                        loading="lazy" />
+                </picture>
+            </div>
+            <div class="item">
+                <picture>
+                    <img src="/static/images/nextgeneration.png" alt="nextgeneration" width="220" height="53"
+                        loading="lazy" />
+                </picture>
+            </div>
+            <div class="item">
+                <picture>
+                    <img src="/static/images/gobierno.png" alt="gobierno" width="308" height="53" loading="lazy" />
+                </picture>
+            </div>
+            <div class="item">
+                <picture>
+                    <img src="/static/images/plan.png" alt="plan" width="161" height="53" loading="lazy" />
+                </picture>
+            </div>
+            <div class="item">
+                <picture>
+                    <img src="/static/images/cam.png" alt="cam" width="190" height="59" loading="lazy" />
+                </picture>
+            </div>
+            <div class="item">
+                <picture>
+                    <img src="/static/images/alastria.png" alt="alastria" width="282" height="59" loading="lazy" />
+                </picture>
+            </div>
+            {{ if .}}
+            <div class="right item">
+                <a href="/logout" class="ui black button">Desconectar</a>
+            </div>
+            {{end}}
+
+        </div>
+    </div>
+
+</div>

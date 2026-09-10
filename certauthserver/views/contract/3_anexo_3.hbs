@@ -1,0 +1,272 @@
+{{define "anexo_3"}}
+<h2><strong>Anexo III – Condiciones Específicas del Nivel 3: Validador</strong></h2>
+
+<details>
+    <summary>Ver Anexo III</summary>
+
+    <ol>
+
+        <li>
+            <h3><strong>Aplicabilidad:</strong></h3>
+            <p>El presente Anexo III regirá en caso de que el Participante sea
+                seleccionado y autorizado como Validador de la red ISBE. La suscripción
+                de este anexo acredita al Participante para operar un Nodo de Consenso
+                en la infraestructura ISBE, con los derechos y responsabilidades que
+                ello implica.</p>
+        </li>
+
+        <li>
+            <h3><strong>Objeto del Anexo:</strong></h3>
+            <p>Establecer las condiciones particulares bajo las cuales el
+                Participante desempeñará el Nivel de Participación de Validador,
+                considerado crítico para la seguridad y operatividad de la red ISBE, al
+                participar en el mecanismo de consenso y validación de
+                transacciones.</p>
+            <p>Este anexo complementa al Contrato Marco especificando compromisos
+                técnicos, niveles de servicio y compensaciones económicas asociados a la
+                operación de un Nodo de Consenso.</p>
+
+        </li>
+
+        <li>
+            <h3><strong>Habilitación como Validador:</strong></h3>
+            <p>Para optar al Nivel de Participación de Validador, el Participante
+                deberá: <em><strong>(i)</strong></em> ser un Participante Básico activo
+                y cumplir sus obligaciones a satisfacción de la Entidad Gestora;
+                <em><strong>(ii)</strong></em> demostrar capacidad técnica y recursos
+                suficientes para operar un nodo validador conforme a las
+                especificaciones de la Política INF1040 (requisitos de hardware,
+                conectividad, seguridad); <em><strong>(iii)</strong></em> superar las
+                pruebas técnicas que la Entidad Gestora estime necesarias (<em>e.g.</em>
+                pruebas de conectividad en un entorno de <em>testnet</em>); y
+                <em><strong>(iv)</strong></em> suscribir el presente anexo, formalizando
+                su compromiso de actuar diligentemente en las tareas de validación y
+                ajustarse a las directrices operativas impartidas.
+            </p>
+            <p>La Entidad Gestora, previa evaluación del cumplimiento de los
+                requisitos anteriormente descritos y en función de las necesidades de la
+                red ISBE, aprobará la incorporación del Participante al conjunto de
+                validadores autorizados.</p>
+            <p>Se le proporcionarán las claves, certificados o <em>whitelist</em>
+                necesarios para que su Nodo de Consenso sea reconocido por la red ISBE
+                (proceso de <em>permisionado</em> de su nodo), así como la información
+                de configuración (direcciones de <em>bootnodes</em>, parámetros de QBFT,
+                etc.).</p>
+            <p>El Participante se incorporará bien como validador activo o en estado
+                de espera (<em>standby</em>), según el esquema de rotación vigente en
+                cada momento.</p>
+
+        </li>
+
+        <li>
+            <h3><strong>Obligaciones del Validador:</strong></h3>
+
+            <ol type="a">
+                <li>
+                    <p><em><u>Operación del Nodo de Consenso</u></em>: El Participante
+                        se compromete a operar un Nodo de Consenso de la red ISBE de forma
+                        continua y conforme a las especificaciones técnicas establecidas. Esto
+                        implica habilitar un entorno de ejecución dedicado, con
+                        <em>hardware</em> y <em>software</em> homologados (<em>e.g.</em>
+                        ejecutar un cliente <em>Hyperledger Besu</em> en versión aprobada), y
+                        mantenerlo funcionando 24/7 para participar en la validación de
+                        bloques.
+                    </p>
+
+                    <p>Deberá implementar todas las medidas de bastionado y ciberseguridad
+                        indicadas en la política INF1040, tales como:
+                        <em><strong>(i)</strong></em> aislamiento de la máquina (que no ejecute
+                        servicios innecesarios); <em><strong>(ii)</strong></em> configuración en
+                        red segura (<em>firewalls</em>, apertura solo de puertos requeridos);
+                        <em><strong>(iii)</strong></em> protección de claves de validación
+                        (almacenamiento seguro, posiblemente con HSM); y
+                        <em><strong>(iv)</strong></em> actualización oportuna del
+                        <em>software</em> cuando se publiquen parches de seguridad.
+                    </p>
+                    <p>Asimismo, deberá seguir las instrucciones sobre rotación entre estado
+                        activo y pasivo de su Nodo de Consenso si la gobernanza así lo determina
+                        para equilibrar la participación.</p>
+
+                </li>
+                <li>
+                    <p><em><u>Disponibilidad y rendimiento</u></em>: El Participante
+                        debe mantener un alto nivel de disponibilidad de su Nodo de Consenso,
+                        procurando un <em>uptime</em> cercano al 100% y minimizando la latencia
+                        en la firma y transmisión de bloques.</p>
+
+                    <p>La Política INF1040 define Acuerdos de Nivel de Servicio
+                        (“<strong>SLAs</strong>”) específicos (<em>e.g.</em> un porcentaje
+                        mínimo de bloques firmados y una latencia máxima tolerada) que el
+                        Participante se obliga a cumplir.</p>
+                    <p>Actualmente, se establecen métricas de referencia tales como:
+                        <em><strong>(i)</strong></em> disponibilidad mensual &gt; 99%;
+                        <em><strong>(ii)</strong></em> ausencia de desconexiones prolongadas;
+                        <em><strong>(iii)</strong></em> firma de al menos [●]% de los turnos de
+                        validación asignados, etc. Estas métricas son monitoreadas
+                        constantemente por el sistema de <em>health-check</em> de ISBE. El
+                        Participante acepta que dichas métricas sean registradas y utilizadas
+                        para evaluar su desempeño, estando de acuerdo en que la Entidad Gestora
+                        acceda a los datos de su Nodo de Consenso necesarios para dicha
+                        monitorización.
+                    </p>
+
+                </li>
+                <li>
+                    <p><em><u>Participación activa en el consenso</u></em>: El
+                        Participante actuará diligentemente en la propuesta y firma de bloques
+                        bajo el algoritmo QBFT (Istanbul BFT que utiliza ISBE).</p>
+
+                    <p>No deberá negarse injustificadamente a validar transacciones ni
+                        introducir retrasos deliberados.</p>
+                    <p>Si por alguna razón técnica necesita pausar su participación (por
+                        mantenimiento, por ejemplo), lo coordinará con la Entidad Gestora para
+                        ser temporalmente reemplazado o pasar a estado de <em>standby</em> sin
+                        afectar el <em>quórum</em> de validación.</p>
+
+                </li>
+                <li>
+                    <p><em><u>Limitaciones y uso debido</u></em>: El Participante no
+                        utilizará su Nodo de Consenso para fines distintos a la validación. En
+                        concreto, tiene prohibido emplearlo para desplegar contratos
+                        inteligentes, para servir tráfico de lectura general de la red o para
+                        conectarlo a sistemas corporativos del Participante distintos al
+                        monitoreo del mismo.</p>
+
+                    <p>El Nodo de Consenso debe permanecer en la ubicación y condiciones
+                        declaradas; cualquier cambio material (<em>e.g.</em> mudarlo de centro
+                        de datos, cambiar configuración significativa) deberá ser notificado y
+                        puede requerir una nueva inspección o aprobación.</p>
+                    <p>Si el Participante desea cesar temporal o definitivamente la
+                        operación de su Nodo de Consenso, lo comunicará con antelación
+                        suficiente (salvo fuerza mayor) para que la Entidad Gestora tome medidas
+                        (e.g. designar un nuevo Validador en su lugar).</p>
+
+                </li>
+                <li>
+                    <p><em><u>Cumplimiento de INF1040</u></em>: En general, el
+                        Participante cumplirá todos los apartados aplicables de la Política
+                        INF1040, que se consideran aquí reproducidos. En resumen:
+                        <em><strong>(i)</strong></em> mantener actualizado el <em>software</em>
+                        a la versión exigida; <em><strong>(ii)</strong></em> aplicar
+                        configuraciones de seguridad recomendadas;
+                        <em><strong>(iii)</strong></em> atender las alertas de monitorización
+                        (<em>e.g.</em> si su Nodo de Consenso se queda rezagado en altura de
+                        bloque o presenta fallos de sincronización, deberá intervenir de
+                        inmediato); y <em><strong>(iv)</strong></em> respetar los procedimientos
+                        de despermisionado en caso de cese (el Nodo de Consenso será eliminado
+                        de la lista de validadores de forma ordenada).
+                    </p>
+                </li>
+                <li>
+                    <p><em><u>Colaboración con la gobernanza técnica</u></em>: El
+                        Participante participará, en la medida de lo posible, en las reuniones o
+                        foros técnicos de validadores que la Entidad Gestora convoque para
+                        coordinar mejoras, discutir parámetros de rendimiento u otros aspectos
+                        del funcionamiento de la red. Además, el Participante aportará
+                        información veraz sobre su Nodo de Consenso cuando sea requerido para
+                        diagnósticos (<em>e.g.</em> <em>logs</em> relevantes ante un
+                        incidente).</p>
+
+                    <p>Si se le solicita implementar algún cambio de configuración o parche
+                        urgente por razones de seguridad, el Participante lo hará sin dilación
+                        siguiendo las instrucciones proporcionadas.</p>
+
+                </li>
+            </ol>
+
+        </li>
+
+        <li>
+            <h3><strong>Retribución y costes:</strong></h3>
+
+            <p>A fin de incentivar la contribución de los Validadores y compensar
+                los recursos dedicados, ISBE prevé una compensación económica periódica
+                al Participante por la operación de su Nodo de Consenso, condicionada al
+                cumplimiento satisfactorio de los SLAs de servicio acordados. Esta
+                compensación podrá adoptar la forma de una cantidad fija o variable
+                (<em>e.g.</em> un importe mensual en euros o tokens, o una bonificación
+                por bloque validado), según lo definido en el modelo económico aprobado
+                por la gobernanza de ISBE.</p>
+            <p>En todo caso, el pago estará supeditado a que el Participante haya
+                mantenido los estándares de disponibilidad y rendimiento exigidos
+                durante el periodo correspondiente.</p>
+            <p>Incumplimientos menores podrían conllevar reducciones proporcionales
+                en la remuneración, mientras que incumplimientos graves o reiterados
+                pueden suponer la pérdida total de la compensación de ese periodo y
+                eventualmente la revocación del rol como Validador.</p>
+            <p>Las condiciones exactas de remuneración (importe, frecuencia de pago,
+                moneda, método) se detallarán en un documento anexo o tabla aprobada por
+                la Junta Directiva de ISBE, la cual podrá revisarlas periódicamente en
+                función del presupuesto disponible y la evolución de la red.</p>
+            <p>Cualquier cambio en la política de retribuciones será notificado a
+                los Validadores con antelación y, de no aceptarlo algún Validador, este
+                podrá renunciar al rol sin penalización.</p>
+            <p>Todos los costes asociados a la instalación y mantenimiento del Nodo
+                de Consenso (equipamiento de <em>hardware</em>, conexión de Internet de
+                alta disponibilidad, consumo eléctrico, servicios <em>cloud</em> si
+                aplica, personal técnico) serán asumidos íntegramente por el
+                Participante. La compensación provista por ISBE pretende ayudar a
+                sufragar esos costes, pero el Participante entiende que podría no
+                cubrirlos en su totalidad.</p>
+            <p>Asimismo, se deja constancia de que cualquier tasa general de
+                membresía aplicable al Nivel de Participación de Participante Básico
+                sigue siendo aplicable al Validador. Es decir, la participación como
+                Validador no exime del pago de cuotas anuales por el hecho de ser
+                Validador).</p>
+            <p>La colaboración como Validador es voluntaria y no genera relación
+                laboral alguna con la Entidad Gestora ni con los demás participantes; se
+                trata de una contraprestación civil por un servicio técnico prestado al
+                ecosistema. El Participante es libre de organizar los recursos humanos o
+                técnicos que destine a operar el Nodo de Consenso, bajo su propia
+                responsabilidad.</p>
+
+        </li>
+
+        <li>
+            <h3><strong>Incumplimiento de SLAs y sanciones:</strong></h3>
+
+            <p>Si el Participante incumple de forma reiterada las métricas de
+                desempeño establecidas (por ejemplo, presenta baja disponibilidad o alta
+                latencia de manera continua), la Entidad Gestora podrá aplicar medidas
+                correctivas.</p>
+            <p>En primer término, lo notificará al Participante para que subsane las
+                deficiencias en un plazo determinado. De persistir los problemas, la
+                Entidad Gestora podrá suspender temporalmente al Nodo de Consenso de la
+                participación en consenso (pasándolo a <em>standby</em> o retirándolo de
+                la lista de validadores activos) e incluso revocar la condición de
+                Validador del Participante mediante la terminación de este anexo por
+                incumplimiento. Esta revocación se haría preferiblemente con el acuerdo
+                del Participante; de lo contrario, se canalizará a través del
+                procedimiento de baja forzosa previsto en el Contrato Marco (pudiendo
+                conllevar la expulsión total si el incumplimiento comprometió gravemente
+                la red).</p>
+            <p>Adicionalmente, un Validador que incumpla de forma reiterada las
+                métricas de desempeño establecidas podrá perder el derecho a
+                compensación durante los periodos afectados, como se ha indicado.</p>
+
+        </li>
+
+
+        <li>
+            <h3><strong>Terminación del rol de Validador:</strong></h3>
+            <p>El Participante puede cesar voluntariamente como Validador
+                notificándolo con al menos 1 mes de antelación para que la Entidad
+                Gestora reorganice el consenso sin su Nodo de Consenso. Transcurrido el
+                plazo, se le retirará de la lista de validadores y quedará sin efecto
+                este anexo, permaneciendo como Participante Básico u otros Niveles de
+                Participación que tuviera, salvo que solicitara la baja total.</p>
+            <p>En caso de renuncia voluntaria, el Participante se compromete a
+                cooperar en la transición, por ejemplo, entregando evidencias de
+                finalización segura (borrado de claves, etc.).</p>
+            <p>La Entidad Gestora podrá finalizar el presente anexo si, por cambios
+                estructurales en la red, se reduce el número de validadores o se
+                modifica el modelo de consenso. En tal supuesto, intentará acordar con
+                el Participante su paso a un rol alternativo (<em>e.g. </em>Observador)
+                o la baja voluntaria, según prefiera, y abonará cualquier compensación
+                devengada hasta la fecha de cese.</p>
+
+        </li>
+
+    </ol>
+</details>
+{{end}}

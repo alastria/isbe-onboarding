@@ -1,0 +1,79 @@
+{{template "partials/preamble"}}
+
+{{template "partials/logobar" "logout_button"}}
+
+<div class="ui hidden divider"></div>
+
+<div class="ui container" style="max-width: 800px;">
+
+    <div class="ui huge header">Bienvenido a ISBE</div>
+
+    <p>Estos son los datos que tenemos registrados sobre tí:</p>
+
+    <div class="ui segment">
+
+        <div class="ui form">
+            <div class="two fields">
+                <div class="five wide field">
+                    <label>Identificador</label>
+                    <input type="text" placeholder="Identificador organización"
+                        value="{{ .subject.OrganizationIdentifier }}" readonly>
+                </div>
+                <div class="eleven wide field">
+                    <label>Organización</label>
+                    <input type="text" placeholder="Nombre organización" value="{{ .subject.Organization }}" readonly>
+                </div>
+            </div>
+            <div class="four fields">
+                <div class="five wide field">
+                    <label>Calle</label>
+                    <input type="text" placeholder="Calle" value="{{ .subject.StreetAddress }}" readonly>
+                </div>
+                <div class="five wide field">
+                    <label>Ciudad</label>
+                    <input type="text" placeholder="Ciudad" value="{{ .subject.Locality }}" readonly>
+                </div>
+                <div class="four wide field">
+                    <label>Provincia</label>
+                    <input type="text" placeholder="Provincia" value="{{ .subject.Province }}" readonly>
+                </div>
+                <div class="two wide field">
+                    <label>País</label>
+                    <input type="text" placeholder="País" value="{{ .subject.Country }}" readonly>
+                </div>
+            </div>
+            <div class="two fields">
+                {{if .subject.GivenName}}
+                <div class="five wide field">
+                    <label>Nombre</label>
+                    <input type="text" placeholder="Nombre" value="{{.subject.GivenName}} {{.subject.FamilyName}}" readonly>
+                </div>
+                {{end}}
+
+                <div class="five wide field">
+                    <label>Email</label>
+                    <input type="text" placeholder="Correo electrónico" value="{{ .subject.Email }}" readonly>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h2 class="ui header">
+        Ahora que estás con nosotros, puedes explorar las cosas que puedes hacer.
+    </h2>
+
+    <div class="ui hidden divider"></div>
+
+    <div class="ui grid">
+        <a class="eight wide column" href="https://isbecatalog.netlify.app">
+            <div class="ui raised segment" style="border-radius:1rem">
+                <h4 class="ui header">Catálogo ISBE</h4>
+                <p style="color:black">El Catálogo ISBE es un catálogo de servicios digitales basados en Blockchain y
+                    que están disponibles en las redes ISBE.</p>
+            </div>
+        </a>
+    </div>
+
+</div>
+
+{{template "partials/postamble"}}

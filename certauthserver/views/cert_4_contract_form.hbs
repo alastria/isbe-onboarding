@@ -1,0 +1,449 @@
+{{define "contract_form"}}
+{{template "preamble"}}
+{{template "logobar"}}
+
+<style>
+    .contract-input {
+        border: none;
+        border-bottom: 1px solid #555;
+        background-color: #f4f7fa;
+        padding: 4px 6px;
+        margin: 0 2px;
+        font-family: inherit;
+        font-size: 0.95em;
+        color: #222;
+        border-radius: 2px;
+        transition: all 0.2s ease;
+    }
+
+    .contract-readonly {
+        font-weight: bold;
+    }
+
+    .contract-input:focus {
+        outline: none;
+        border-bottom: 2px solid #2185d0;
+        background-color: #e0e7ff;
+    }
+
+    select.contract-input {
+        padding-right: 20px;
+        cursor: pointer;
+    }
+
+    .text-center {
+        text-align: center;
+    }
+
+    summary {
+        font-size: 1.2em;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .contract-text li {
+        font-size: 1.2rem;
+        line-height: 1.4285em;
+    }
+
+    p {
+        font-size: 1.2rem;
+    }
+
+    p:last-child,
+    p:first-child {
+        margin-bottom: 1rem;
+    }
+
+    input:invalid {
+        border: 1px dashed red;
+    }
+
+    input:valid {
+        border: 1px solid black;
+    }
+</style>
+
+<div class="ui hidden divider"></div>
+
+<div class="ui container">
+
+    <div class="ui raised segment" style="border-radius:1rem">
+
+        <div class="ui five ordered stackable steps">
+            <div class="completed step">
+                <div class="content">
+                    <div class="title">Certificado</div>
+                    <div class="description">Seleccionar certificado</div>
+                </div>
+            </div>
+            <div class="completed step">
+                <div class="content">
+                    <div class="title">Email</div>
+                    <div class="description">Proporcionar email</div>
+                </div>
+            </div>
+            <div class="completed step">
+                <div class="content">
+                    <div class="title">Verificar Email</div>
+                    <div class="description">Introducir código</div>
+                </div>
+            </div>
+            <div class="active step">
+                <div class="content">
+                    <div class="title">Contrato</div>
+                    <div class="description">Completar datos</div>
+                </div>
+            </div>
+            <div class="disabled step">
+                <div class="content">
+                    <div class="title">Completado</div>
+                    <div class="description">Revisar y aceptar contrato</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    {{ $countryName := .countryName }}
+
+    <form id="contract_form" class="contract-text" name="contract_form" method="POST" action="{{ .postAction }}">
+        {{with .formData}}
+
+        <div class="ui raised segment" style="border-radius:1rem">
+
+            <h1 id="contrato-marco-de-adhesión-a-la-red-isbe"><strong>CONTRATO MARCO DE ADHESIÓN A LA RED ISBE</strong>
+            </h1>
+
+
+            <p>En Madrid, a {{ .TodayDay }} de {{ .TodayMonth }} de {{ .TodayYear }}</p>
+            <input type="hidden" name="today_day" value="{{ .TodayDay }}">
+            <input type="hidden" name="today_month" value="{{ .TodayMonth }}">
+            <input type="hidden" name="today_year" value="{{ .TodayYear }}">
+
+            <input type="hidden" name="organization_name" value="{{ .OrganizationName }}">
+            <input type="hidden" name="organization_country" value="{{ .OrganizationCountry }}">
+            <input type="hidden" name="organization_nif" value="{{ .OrganizationNif }}">
+            <input type="hidden" name="representative_name" value="{{ .RepresentativeName }}">
+            <input type="hidden" name="representative_email" value="{{ .RepresentativeEmail }}">
+
+            <h2 class="text-center"><strong>REUNIDOS</strong></h2>
+
+            <!-- IDENTIFICACION ALASTRIA -->
+            <p>De una parte, Asociación Consorcio Red Alastria, con domicilio social en
+                C/ Alberto Aguilera, 23 (Universidad Pontificia de Comillas-ICADE), 28015-Madrid
+                (España), y con N.I.F. número G87936159, inscrita en la Sección Primera del Registro
+                Nacional de Asociaciones con el número 616096, y teléfono +34 683 49 37 48
+                (en adelante “Alastria” o la “Asociación”).
+            </p>
+
+            <!-- IDENTIFICACION PARTICIPANTE -->
+            <p>Y de otra parte,
+                <span class="contract-readonly">{{ .OrganizationName }}</span>,
+                persona jurídica constituida conforme a las leyes de <span
+                    class="contract-readonly">{{ $countryName }}</span>,
+                con domicilio social en
+                <input type="text" name="organization_address" placeholder="Domicilio social del Participante"
+                    class="contract-input" style="width: 350px;" required value="{{ .OrganizationAddress }}">
+                y N.I.F. número
+                <span class="contract-readonly">{{ .OrganizationNif }}</span>,
+                representada en este acto por
+                <select name="representative_title" class="contract-input" style="width: 60px;">
+                    <option value="D.">D.</option>
+                    <option value="Dña.">Dña.</option>
+                </select>
+                <span class="contract-readonly">{{ .RepresentativeName }}</span>,
+                con correo electrónico
+                <span class="contract-readonly">{{ .RepresentativeEmail }}</span>
+                (en adelante, la “<strong>Entidad Adherente</strong>”).
+            </p>
+
+            <p>Ambas partes, en adelante denominadas conjuntamente como “<strong>las Partes</strong>”,
+                reconocen tener la capacidad jurídica y de obrar necesaria y suficiente para
+                contratar y obligarse en la representación que ostentan, en especial para
+                formalizar el presente Contrato Marco de Adhesión a la red ISBE. Reconociéndose
+                mutuamente tal capacidad, los comparecientes,
+            </p>
+
+            <!-- EXPOSICION DE LOS MOTIVOS DEL CONTRATO -->
+
+            <h2 class="text-center"><strong>EXPONEN</strong></h2>
+
+            <ol type="I">
+                <li>
+                    <p>
+                        Que ISBE es una infraestructura de blockchain público-permisionada de ámbito nacional, cuya
+                        gobernanza explícita y sistema de niveles de participación garantizan un equilibrio entre la
+                        apertura
+                        del ecosistema y los requisitos de seguridad, resiliencia y cumplimiento jurídico.
+                    </p>
+                </li>
+                <li>
+                    <p>
+                        Que la red ISBE opera bajo un modelo público-permisionado, lo que significa que, si bien se
+                        trata de
+                        una infraestructura abierta y colaborativa, el acceso a ciertas funcionalidades está restringido
+                        a
+                        participantes autorizados según su nivel de participación (el “<strong>Nivel de
+                            Participación</strong>”). El ecosistema se estructura en los siguientes Niveles de
+                        Participación, cada uno de ellos
+                        desarrollado en su correspondiente anexo al presente Contrato Marco:
+                    </p>
+                    <ol type="1">
+                        <li>
+                            <p>Básico;</p>
+                        </li>
+                        <li>
+                            <p>Desarrollador;</p>
+                        </li>
+                        <li>
+                            <p>Observador;</p>
+                        </li>
+                        <li>
+                            <p>Operador de Nodo de Ejecución; y</p>
+                        </li>
+                        <li>
+                            <p>Operador de Nodo de Consenso.</p>
+                        </li>
+                    </ol>
+                </li>
+                <li>
+                    <p>
+                        Que cada uno de los referidos Niveles de Participación tiene un régimen propio de derechos,
+                        capacidades operativas y obligaciones dentro de la red ISBE. Los Niveles de Participación son
+                        autónomos entre sí, sin jerarquía ni progresión obligatoria entre ellos, pudiendo la Entidad
+                        Adherente suscribir uno o varios Niveles de Participación de manera simultánea, siempre que
+                        cumpla
+                        íntegramente las obligaciones asociadas a cada uno y respete las segregaciones funcionales que
+                        resulten exigibles, en especial entre roles técnicos y de infraestructura. La multipertenencia
+                        es
+                        voluntaria y, en ningún caso, obligatoria.
+                    </p>
+                </li>
+                <li>
+                    <p>
+                        Que, con el fin de preservar la neutralidad, la seguridad y el carácter federado de la red ISBE,
+                        la
+                        acumulación de Niveles de Participación que pueda comprometer dichos principios podrá ser
+                        condicionada, limitada o, en su caso, revocada por el órgano de supervisión o de gobernanza
+                        competente de la Entidad Gestora (según dicho término queda definido más adelante), mediante
+                        resolución motivada, basada en criterios objetivos, transparentes y no discriminatorios y de
+                        acuerdo
+                        con las Políticas ISBE, actuando esta facultad como mecanismo para evitar concentraciones de
+                        poder o
+                        fenómenos de captura de la infraestructura.
+                    </p>
+                </li>
+                <li>
+                    <p>
+                        Que la relación jurídica entre la Entidad Adherente y la Entidad Gestora se articula a través de
+                        la
+                        siguiente estructura contractual, actuando la Entidad Gestora como contraparte contractual única
+                        frente a la Entidad Adherente y como responsable de la administración y coordinación de la red
+                        ISBE,
+                        de conformidad con las decisiones de sus órganos de gobernanza:
+                    </p>
+                    <ul>
+                        <li>
+                            <p>
+                                Mediante la suscripción del presente Contrato Marco de adhesión a la red ISBE, que
+                                establece el
+                                marco jurídico general, las Políticas ISBE de obligado cumplimiento y el régimen de
+                                responsabilidad común aplicable a todos los miembros de la red.
+                            </p>
+                        </li>
+                        <li>
+                            <p>
+                                Mediante la suscripción, de forma inseparable, de al menos uno de los anexos de nivel de
+                                participación (los “<strong>Anexos de Rol</strong>”), cada uno de los cuales regula el
+                                régimen
+                                específico aplicable al correspondiente Nivel de Participación.
+                            </p>
+                            <p>
+                                La adhesión de la Entidad Adherente a un Anexo de Rol se realizará:
+                                <strong><em>(i)</em></strong> de forma automática, en el caso de los Niveles de
+                                Participación
+                                Básico y Desarrollador, una vez formalizada la solicitud por los canales habilitados por
+                                la
+                                Entidad Gestora y verificadas las comprobaciones mínimas previstas en las Políticas
+                                ISBE, sin
+                                necesidad de un proceso de revisión individualizada; y <strong><em>(ii)</em></strong>
+                                para el
+                                resto de Niveles de Participación, únicamente una vez cumplidos los requisitos
+                                aplicables al
+                                Nivel de Participación correspondiente y previa revisión y aprobación por la Entidad
+                                Gestora,
+                                de acuerdo con los procedimientos de solicitud establecidos por la gobernanza de ISBE.
+                            </p>
+                        </li>
+                    </ul>
+                    <p>
+                        No se admite la adhesión a ISBE únicamente mediante la firma del Contrato Marco sin la asunción
+                        simultánea de, al menos, un Nivel de Participación.
+                    </p>
+                </li>
+                <li>
+                    <p>
+                        Que, habiendo llegado ambas Partes a un acuerdo respecto a la colaboración de la Entidad
+                        Adherente en
+                        la red ISBE conforme a lo indicado en los expositivos anteriores, las Partes formalizan el
+                        presente
+                        <strong>CONTRATO MARCO DE ADHESIÓN A LA RED ISBE</strong> (el “<strong>Contrato
+                            Marco</strong>”), que
+                        se regirá con arreglo y sujeción a las siguientes,
+                    </p>
+                </li>
+            </ol>
+
+            <!-- ESTIPULACIONES -->
+            <div class="ui blue segment">
+
+                {{template "estipulaciones" .}}
+
+                <div class="ui positive message">
+                    <div class="ui large checkbox">
+                        <input id="contract_base" type="checkbox" name="contract_base">
+                        <label>Acepto las estipulaciones del contrato marco</label>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="ui raised segment" style="border-radius:1rem">
+
+            <h1><strong>ANEXOS DEL CONTRATO MARCO</strong></h1>
+
+            <p>En Madrid, a {{ .TodayDay }} de {{ .TodayMonth }} de {{ .TodayYear }}</p>
+
+            <!-- ANEXO I -->
+            <div class="ui blue segment">
+
+                {{template "anexo_1" .}}
+
+                <div class="ui positive message">
+                    <div class="ui large checkbox">
+                        <input id="contract_basic" type="checkbox" name="contract_basic">
+                        <label>Acepto los términos y condiciones del Anexo I</label>
+                    </div>
+                </div>
+
+                <p><em>(Las cláusulas generales del Contrato Marco continúan aplicando
+                        en todo lo no modificado expresamente por este Anexo I.)</em></p>
+
+            </div>
+
+            <div class="ui divider"></div>
+
+            <!-- ANEXO II -->
+            <div class="ui blue segment">
+
+                {{template "anexo_2" .}}
+
+                <div class="ui positive message">
+                    <div class="ui large checkbox">
+                        <input id="contract_developer" type="checkbox" name="contract_developer">
+                        <label>Acepto los términos y condiciones del Anexo II</label>
+                    </div>
+                </div>
+
+                <p><em>(Las cláusulas generales del Contrato Marco continúan aplicando
+                        en todo lo no modificado expresamente por este Anexo II.)</em></p>
+
+            </div>
+
+            <div class="ui divider"></div>
+
+        </div>
+
+        <input type="hidden" name="auth_code" value="{{ $.authCode }}">
+        <input type="hidden" name="state" value="{{ $.authCodeObj.State }}">
+
+
+        <div class="ui raised segment" style="border-radius:1rem">
+
+            <h2><strong>GENERACIÓN DEL CONTRATO</strong></h2>
+
+            <div class="ui segment">
+                <p>Usa el botón "Genera contrato" para generar un borrador de contrato para que puedas revisarlo y
+                    firmarlo en el paso siguiente.</p>
+                <div class="ui three spaced buttons">
+                    <button id="generate-button" class="ui large black circular button">
+                        <i class="check icon"></i> Genera contrato
+                    </button>
+                    <a class="ui large red circular button"
+                        href="{{ $.authCodeObj.RedirectURI }}?error=access_denied&state={{ $.authCodeObj.State }}">
+                        <i class="times circle icon"></i> Cancelar
+                    </a>
+                </div>
+            </div>
+
+
+        </div>
+
+        {{end}}
+    </form>
+
+</div>
+<script>
+    $(document).ready(function () {
+        $('#generate-button').on('click', function (e) {
+            e.preventDefault();
+            debugger;
+
+            var contract_form = document.forms["contract_form"];
+            var contract_base = contract_form.elements["contract_base"];
+            var contract_basic = contract_form.elements["contract_basic"];
+            var contract_developer = contract_form.elements["contract_developer"];
+
+            if (!contract_base.checked) {
+                alert("Debes aceptar las estipulaciones del contrato marco");
+                return;
+            }
+
+            if (!contract_basic.checked && !contract_developer.checked) {
+                alert("Debes aceptar como mínimo uno de los términos y condiciones de los Anexos I o II");
+                return;
+            }
+
+            const data = new FormData(contract_form);
+            for (const pair of data.entries()) {
+                console.log(pair[0], pair[1]);
+            }
+
+            contract_form.submit();
+        });
+
+
+        function fillTestData() {
+            var contract_form = document.forms["contract_form"];
+            for (const pair of Object.entries(test_data)) {
+                contract_form.elements[pair[0]].value = pair[1];
+            }
+        }
+
+    });
+
+    var test_data = {
+        "organization_name": "Good Air S.L.",
+        "organization_country": "España",
+        "organization_address": "Academia 28",
+        "organization_nif": "VATES-12345678K",
+        "registry_name": "Madrid",
+        "registry_volume": "1",
+        "registry_folio": "22",
+        "registry_sheet": "333",
+        "representative_name": "Perica Perez",
+        "representative_email": "jesus@alastria.io",
+        "notary_city": "Barcelona",
+        "notary_name": "Notillo",
+        "notary_day": "23",
+        "notary_month": "Mayo",
+        "notary_year": "2015",
+        "notary_protocol_number": "888888",
+    }
+</script>
+
+{{template "postamble"}}
+{{end}}

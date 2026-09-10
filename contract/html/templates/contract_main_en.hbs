@@ -1,0 +1,462 @@
+{{define "contract_main_en"}}
+
+<!DOCTYPE html>
+<html>
+
+<head>
+    <!-- Standard Meta -->
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>ISBE Onboarding</title>
+
+    <style>
+        /* --- CSS Reset & Variables --- */
+        :root {
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --brand-primary: #0f172a;
+            --border-color: #e2e8f0;
+            --accent-color: #0369a1;
+        }
+
+        @page {
+            size: A4;
+            margin: 2.5cm 2cm;
+
+            @top-left {
+                content: url("{{.certUrl}}/static/images/alastria_logo.png");
+            }
+
+            @bottom-center {
+                content: "Página " counter(page) " de " counter(pages);
+                font-family: 'DejaVu Sans', sans-serif;
+                font-size: 8pt;
+                color: var(--text-muted);
+            }
+        }
+
+        @page :first {
+
+            @bottom-center {
+                content: "";
+            }
+        }
+
+        body {
+            font-family: 'DejaVu Sans', sans-serif;
+            color: var(--text-main);
+            font-size: 10pt;
+            line-height: 1.5;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* --- Typography --- */
+        h1,
+        h2,
+        h3 {
+            color: var(--brand-primary);
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+            font-weight: 700;
+        }
+
+        h1 {
+            font-size: 14pt;
+            text-align: center;
+            text-transform: uppercase;
+            border-bottom: 2px solid var(--brand-primary);
+            padding-bottom: 0.5em;
+            margin-bottom: 1em;
+        }
+
+        h2 {
+            font-size: 12pt;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.2em;
+            text-transform: uppercase;
+        }
+
+        h3 {
+            font-size: 11pt;
+            font-weight: 600;
+        }
+
+        p {
+            margin-bottom: 1em;
+            text-align: justify;
+        }
+
+        strong {
+            color: var(--brand-primary);
+        }
+
+        /* --- Lists --- */
+        ol,
+        ul {
+            margin-bottom: 1em;
+            padding-left: 1.5em;
+        }
+
+        li {
+            margin-bottom: 0.5em;
+        }
+
+        /* Legal numbering fallback if needed, but standard browser handles type="I", "a" etc */
+
+        /* --- Tables --- */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5em 0;
+        }
+
+        th {
+            background-color: #f8fafc;
+            color: var(--text-muted);
+            font-size: 8pt;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 8pt;
+            border-bottom: 2px solid var(--border-color);
+            text-align: left;
+        }
+
+        td {
+            padding: 8pt;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 9pt;
+            vertical-align: top;
+        }
+
+        /* --- Special Elements --- */
+        hr {
+            border: 0;
+            border-top: 1px solid var(--border-color);
+            margin: 2em 0;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .page-break {
+            break-before: page;
+        }
+
+        /* Footnotes styling */
+        .footnote-ref {
+            text-decoration: none;
+            font-size: 0.7em;
+            vertical-align: super;
+            color: var(--accent-color);
+        }
+
+        .footnotes {
+            margin-top: 2em;
+            font-size: 8pt;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border-color);
+            padding-top: 1em;
+        }
+
+        /* Signature Boxes */
+        .signatures {
+            display: flex;
+            margin-top: 4em;
+            gap: 3cm;
+        }
+
+        .signatures>div {
+            flex: 1;
+            border: 1px solid var(--border-color);
+            padding-left: 1em;
+        }
+
+        .signatures p {
+            margin-bottom: 1em;
+            /* Space for the signature itself */
+            padding-bottom: 3pt;
+        }
+
+        .sig-label {
+            display: block;
+            font-size: 8pt;
+            color: var(--text-muted);
+            margin-top: 4pt;
+            padding-bottom: 2pt;
+        }
+
+        /* --- Logo & Header --- */
+        .first-page-header {
+            margin-bottom: 3cm;
+            padding-bottom: 0.5cm;
+            display: flex;
+            align-items: flex-end;
+            justify-content: flex-start;
+        }
+
+        .logo {
+            height: 0.8cm;
+            /* Dimensioned properly for professional look */
+            width: auto;
+        }
+
+        .myheader {
+            /* White background and shadow */
+            background-color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+
+            /* Flex layout for horizontal alignment */
+            display: flex;
+            align-items: center;
+
+            /* Padding for left and right edge spacing (e.g., 20px) */
+            padding: 12px 20px;
+        }
+
+        /* 2. Company Logo Styling */
+        .company-logo img {
+            height: 30px;
+            width: auto;
+            object-fit: contain;
+        }
+
+        .center-group {
+            display: flex;
+            align-items: center;
+
+            margin-left: 100px;
+        }
+
+
+        /* 3. Right-Hand Group (Sponsors, Text, Button) */
+        .right-group {
+            display: flex;
+            align-items: center;
+
+            /* CRUCIAL: Pushes this group to the far right, creating the large gap */
+            margin-left: auto;
+        }
+
+        /* Sponsor Logos Container */
+        .sponsor-logos {
+            display: flex;
+            align-items: center;
+            /* Smaller gap between sponsor logos (12px) */
+            gap: 12px;
+            /* Margin to separate sponsors from the String/Button group */
+            margin-right: 32px;
+        }
+
+        .sponsor-logos img {
+            height: 24px;
+            width: auto;
+            border-radius: 4px;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+
+        .sponsor-logos img:hover {
+            opacity: 1;
+        }
+
+        .sponsor-text {
+            font-size: 10px;
+            color: #6b7280;
+            /* Gray-500 equivalent */
+            margin-right: 10px;
+        }
+    </style>
+
+</head>
+
+<body>
+
+
+    {{with .formData}}
+
+
+    <h1>MASTER AGREEMENT FOR ACCESSION TO THE ISBE NETWORK</h1>
+
+    <p>In Madrid, on {{ .TodayDay }} de {{ .TodayMonth }} de {{ .TodayYear }}</p>
+
+    <h2 class="text-center">BY AND BETWEEN</h2>
+
+    <!-- IDENTIFICACION ALASTRIA -->
+    <p>On one part, Asociación Consorcio Red Alastria, with registered office at
+        C/ Alberto Aguilera, 23 (Universidad Pontificia de Comillas-ICADE), 28015-Madrid
+        (Spain), and with N.I.F. number G87936159, registered in the First Section of the National
+        Register of Associations with number 616096, and phone +34 683 49 37 48
+        (hereinafter "Alastria" or the "Association").
+    </p>
+
+    <!-- IDENTIFICACION PARTICIPANTE -->
+    <p>And on the other part, {{ .OrganizationName }},
+        legal entity incorporated in accordance with the laws of
+        {{ $.countryName }},
+        with registered office at
+        {{ .OrganizationAddress }}
+        and VAT number
+        {{ .OrganizationNif }},
+        represented in this act by
+        {{ .RepresentativeTitle }}
+        {{ .RepresentativeName }},
+        with email address
+        {{ .RepresentativeEmail }}
+        (hereinafter, the "<strong>Participant</strong>").
+    </p>
+
+    <p>Both parties, hereinafter jointly referred to as "<strong>the Parties</strong>",
+        acknowledge having the legal capacity to act necessary and sufficient to
+        contract and bind themselves in the representation they hold, especially to
+        formalize this Master Agreement for Accession to the ISBE network. Mutually acknowledging
+        such capacity, the appearing parties,
+    </p>
+
+    <!-- EXPOSICION DE LOS MOTIVOS DEL CONTRATO -->
+
+    <h2 class="text-center">STATE</h2>
+
+    <ol type="I">
+        <li>
+            <p>That ISBE is a public-permissioned blockchain infrastructure
+                of national scope, whose explicit governance and
+                participation tier system guarantee a balance between the
+                openness of the ecosystem and the requirements for security, resilience and
+                legal compliance.</p>
+        </li>
+        <li>
+            <p>That the ISBE network operates under a public-permissioned model, which
+                means that, although it is an open and
+                collaborative infrastructure, access to certain functionalities is restricted to
+                authorized participants according to their level of participation (the
+                "<strong>Participation Level</strong>"). The ecosystem is structured
+                in the following Participation Levels:</p>
+
+            <ol type="a">
+                <li>
+                    <p>Level 0: Basic Participant.</p>
+                </li>
+                <li>
+                    <p>Level 1: Observer.</p>
+                </li>
+                <li>
+                    <p>Level 2: Service Provider.</p>
+                </li>
+                <li>
+                    <p>Level 3: Validator.</p>
+                </li>
+            </ol>
+        </li>
+        <li>
+            <p>That each of the referred Participation Levels has specific
+                operational capabilities and responsibilities within the ISBE
+                network, being cumulative and evolutionary, the Participant being able to
+                simultaneously hold more than one Participation Level, in accordance
+                with the functions it performs in the network and the operational capabilities and
+                responsibilities associated with each Participation Level. For example,
+                a Participant can simultaneously act as a Validator and Service Provider,
+                complying with the obligations corresponding to both
+                Participation Levels.</p>
+        </li>
+        <li>
+            <p>That the legal relationship between the Participant and the Managing
+                Entity (as such term is defined below) is articulated through
+                the following contractual structure:</p>
+
+            <ul>
+                <li>
+                    <p>Through the subscription of this Master Agreement, the
+                        Participant acquires the status of Basic Participant and accepts the
+                        general conditions and ISBE policies applicable to all
+                        members of the ISBE network.</p>
+                </li>
+                <li>
+                    <p>To opt for any other higher Participation Level
+                        (<em>i.e.</em> Observer, Service Provider and/or Validator), the
+                        Participant must sign the annex corresponding to said Participation Level
+                        that accompanies this Master Agreement. Each annex
+                        will detail the powers, obligations and limitations specific to that
+                        Participation Level, avoiding the need to sign new independent contracts
+                        in case the Participant wants to modify their Participation
+                        Level.</p>
+
+                    <p>The accession of the Participant to an annex will be made only
+                        once the requirements applicable to the corresponding Participation Level are met
+                        and will follow the application procedures established
+                        by ISBE governance.</p>
+
+                </li>
+            </ul>
+
+        </li>
+        <li>
+            <p>That, both parties having reached an agreement regarding the
+                collaboration of the Participant in the ISBE network according to the foregoing
+                recitals, the Parties formalize this
+                <strong>MASTER AGREEMENT FOR ACCESSION TO THE ISBE NETWORK</strong> (the
+                "<strong>Master Agreement</strong>"), which will be governed in accordance with and subject
+                to the following,
+            </p>
+        </li>
+    </ol>
+
+    <!-- ESTIPULACIONES -->
+
+    {{template "estipulaciones" .}}
+
+
+
+    {{if eq .ContractCheckBasic "on"}}
+    <!-- ANEXO I -->
+
+    {{template "anexo_1_en" .}}
+
+
+    <p><em>(The general clauses of the Master Agreement continue to apply
+            in everything not expressly modified by this Annex I.)</em></p>
+
+    {{end}}
+
+    {{if eq .ContractCheckDeveloper "on"}}
+    <hr>
+
+    <!-- ANEXO II -->
+    {{template "anexo_2" .}}
+
+    <p><em>(The general clauses of the Master Agreement continue to apply
+            in everything not expressly modified by this Annex II.)</em></p>
+
+    {{end}}
+
+    <hr>
+
+    <h2>ACCEPTANCE AND SIGNATURE</h2>
+
+    <div class="signatures">
+        <div>
+            <p><strong>For Alastria</strong></p>
+            <p><span class="sig-label">Name:</span> Miguel Ángel Domínguez</p>
+            <p><span class="sig-label">Position:</span> President</p>
+        </div>
+        <div>
+            <p><strong>For the Adhering Entity</strong></p>
+            <p><span class="sig-label">Company Name:</span> {{ .OrganizationName }}</p>
+            <p><span class="sig-label">Legal Representative:</span> {{ .RepresentativeName }}</p>
+        </div>
+    </div>
+
+    {{end}}
+
+
+</body>
+
+</html>
+{{end}}

@@ -1,0 +1,49 @@
+{{ define "preamble" }}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}} - Admin Dashboard</title>
+    <link rel="stylesheet" href="/static/css/w3css.css">
+
+    <style>
+        .margin-bottom-small {
+            margin-bottom: 4px !important;
+        }
+
+        body {
+            background-color: #f9f3e7
+        }
+    </style>
+    <style>
+        /* Make the editor fill the page */
+        html,
+        body,
+        #container {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+        }
+    </style>
+
+
+</head>
+
+<body style="background-image: url('/static/images/isbe_background.png')">
+
+    {{template "logobar" .}}
+
+    <!-- Sidebar -->
+    <div class="w3-sidebar w3-bar-block" style="width:150px">
+        <a href="/admin" class="w3-bar-item w3-button w3-large">Home</a>
+        <a href="/admin/registrations" class="w3-bar-item w3-button">Registrations</a>
+        <a href="/admin/relyingparties" class="w3-bar-item w3-button">Relying Parties</a>
+        <a href="/admin/organizations" class="w3-bar-item w3-button">Organizations</a>
+    </div>
+
+    <!-- Page Content -->
+    <div style="margin-left:150px;height:100%;">
+        {{ end }}

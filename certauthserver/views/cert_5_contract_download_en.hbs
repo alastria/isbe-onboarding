@@ -1,0 +1,389 @@
+{{define "contract_download_en"}}
+{{template "preamble"}}
+{{template "logobar"}}
+
+<style>
+    .contract-input {
+        border: none;
+        border-bottom: 1px solid #555;
+        background-color: #f4f7fa;
+        padding: 4px 6px;
+        margin: 0 2px;
+        font-family: inherit;
+        font-size: 0.95em;
+        color: #222;
+        border-radius: 2px;
+        transition: all 0.2s ease;
+    }
+
+    .contract-input:focus {
+        outline: none;
+        border-bottom: 2px solid #2185d0;
+        background-color: #e0e7ff;
+    }
+
+    select.contract-input {
+        padding-right: 20px;
+        cursor: pointer;
+    }
+
+    .text-center {
+        text-align: center;
+    }
+
+    summary {
+        font-size: 1.2em;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .contract-text li {
+        font-size: 1.2rem;
+        line-height: 1.4285em;
+    }
+
+    p {
+        font-size: 1.2rem;
+    }
+
+    p:last-child,
+    p:first-child {
+        margin-bottom: 1rem;
+    }
+
+    input:invalid {
+        border: 1px dashed red;
+    }
+
+    input:valid {
+        border: 1px solid black;
+    }
+</style>
+
+<div class="ui hidden divider"></div>
+
+<div class="ui container">
+
+    <div class="ui raised segment" style="border-radius:1rem">
+
+        <div class="ui five ordered stackable steps">
+            <div class="completed step">
+                <div class="content">
+                    <div class="title">Certificate</div>
+                    <div class="description">Select certificate</div>
+                </div>
+            </div>
+            <div class="completed step">
+                <div class="content">
+                    <div class="title">Email</div>
+                    <div class="description">Provide email</div>
+                </div>
+            </div>
+            <div class="completed step">
+                <div class="content">
+                    <div class="title">Verify Email</div>
+                    <div class="description">Enter code</div>
+                </div>
+            </div>
+            <div class="completed step">
+                <div class="content">
+                    <div class="title">Contract</div>
+                    <div class="description">Fill out data</div>
+                </div>
+            </div>
+            <div class="active step">
+                <div class="content">
+                    <div class="title">Completed</div>
+                    <div class="description">Review and accept contract</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+
+    <form id="contract_form" class="contract-text" name="contract_form" method="POST" action="{{ .postAction }}">
+        {{with .formData}}
+
+        <div class="ui raised segment" style="border-radius:1rem">
+
+            <h1 id="contrato-marco-de-adhesión-a-la-red-isbe"><strong>MASTER AGREEMENT FOR ACCESSION TO THE ISBE
+                    NETWORK</strong>
+            </h1>
+
+            <p>In Madrid, on {{ .TodayDay }} of {{ .TodayMonth }} of {{ .TodayYear }}</p>
+            <input type="hidden" name="today_day" value="{{ .TodayDay }}">
+            <input type="hidden" name="today_month" value="{{ .TodayMonth }}">
+            <input type="hidden" name="today_year" value="{{ .TodayYear }}">
+
+            <h2 class="text-center"><strong>BY AND BETWEEN</strong></h2>
+
+            <!-- IDENTIFICACION ALASTRIA -->
+            <p>On one part, Asociación Consorcio Red Alastria, with registered office at
+                C/ Alberto Aguilera, 23 (Universidad Pontificia de Comillas-ICADE), 28015-Madrid
+                (Spain), and with N.I.F. number G87936159, registered in the First Section of the National
+                Register of Associations with number 616096, and phone +34 683 49 37 48
+                (hereinafter "Alastria" or the "Association").
+            </p>
+
+            <!-- IDENTIFICACION PARTICIPANTE -->
+            <p>And on the other part, {{ .OrganizationName }},
+                legal entity incorporated in accordance with the laws of
+                {{ .OrganizationCountry }},
+                with registered office at
+                {{ .OrganizationAddress }}
+                and N.I.F. number
+                {{ .OrganizationNif }},
+                registered in the Mercantile Registry of
+                {{ .RegistryName }}
+                volume
+                {{ .RegistryVolume }}, folio
+                {{ .RegistryFolio }}, sheet
+                {{ .RegistrySheet }},
+                represented in this act by
+                {{ .RepresentativeTitle }}
+                {{ .RepresentativeName }},
+                with email address
+                {{ .RepresentativeEmail }},
+                as accredited by deed executed before the Notary of
+                {{ .NotaryCity }},
+                {{ .NotaryTitle }} {{ .NotaryName }}, on the {{ .NotaryDay }} of
+                {{ .NotaryMonth }},
+                {{ .NotaryYear }}, with number
+                {{ .NotaryProtocolNumber }} of their protocol
+                (hereinafter, the "<strong>Participant</strong>").
+                <input type="hidden" name="organization_name" value="{{ .OrganizationName }}">
+                <input type="hidden" name="organization_country" value="{{ .OrganizationCountry }}">
+                <input type="hidden" name="organization_address" value="{{ .OrganizationAddress }}">
+                <input type="hidden" name="organization_nif" value="{{ .OrganizationNif }}">
+                <input type="hidden" name="registry_name" value="{{ .RegistryName }}">
+                <input type="hidden" name="registry_volume" value="{{ .RegistryVolume }}">
+                <input type="hidden" name="registry_folio" value="{{ .RegistryFolio }}">
+                <input type="hidden" name="registry_sheet" value="{{ .RegistrySheet }}">
+                <input type="hidden" name="representative_title" value="{{ .RepresentativeTitle }}">
+                <input type="hidden" name="representative_name" value="{{ .RepresentativeName }}">
+                <input type="hidden" name="representative_email" value="{{ .RepresentativeEmail }}">
+                <input type="hidden" name="notary_city" value="{{ .NotaryCity }}">
+                <input type="hidden" name="notary_title" value="{{ .NotaryTitle }}">
+                <input type="hidden" name="notary_name" value="{{ .NotaryName }}">
+                <input type="hidden" name="notary_day" value="{{ .NotaryDay }}">
+                <input type="hidden" name="notary_month" value="{{ .NotaryMonth }}">
+                <input type="hidden" name="notary_year" value="{{ .NotaryYear }}">
+                <input type="hidden" name="notary_protocol_number" value="{{ .NotaryProtocolNumber }}">
+            </p>
+
+            <p>Both parties, hereinafter jointly referred to as "<strong>the Parties</strong>",
+                acknowledge having the legal capacity to act necessary and sufficient to
+                contract and bind themselves in the representation they hold, especially to
+                formalize this Master Agreement for Accession to the ISBE network. Mutually acknowledging
+                such capacity, the appearing parties,
+            </p>
+
+            <!-- EXPOSICION DE LOS MOTIVOS DEL CONTRATO -->
+
+            <h2 class="text-center"><strong>STATE</strong></h2>
+
+            <ol type="I">
+                <li>
+                    <p>That ISBE is a public-permissioned blockchain infrastructure
+                        of national scope, whose explicit governance and
+                        participation tier system guarantee a balance between the
+                        openness of the ecosystem and the requirements for security, resilience and
+                        legal compliance.</p>
+                </li>
+                <li>
+                    <p>That the ISBE network operates under a public-permissioned model, which
+                        means that, although it is an open and
+                        collaborative infrastructure, access to certain functionalities is restricted to
+                        authorized participants according to their level of participation (the
+                        "<strong>Participation Level</strong>"). The ecosystem is structured
+                        in the following Participation Levels:</p>
+
+                    <ol type="a">
+                        <li>
+                            <p>Level 0: Basic Participant.</p>
+                        </li>
+                        <li>
+                            <p>Level 1: Observer.</p>
+                        </li>
+                        <li>
+                            <p>Level 2: Service Provider.</p>
+                        </li>
+                        <li>
+                            <p>Level 3: Validator.</p>
+                        </li>
+                    </ol>
+                </li>
+                <li>
+                    <p>That each of the referred Participation Levels has specific
+                        operational capabilities and responsibilities within the ISBE
+                        network, being cumulative and evolutionary, the Participant being able to
+                        simultaneously hold more than one Participation Level, in accordance
+                        with the functions it performs in the network and the operational capabilities and
+                        responsibilities associated with each Participation Level. For example,
+                        a Participant can simultaneously act as a Validator and Service Provider,
+                        complying with the obligations corresponding to both
+                        Participation Levels.</p>
+                </li>
+                <li>
+                    <p>That the legal relationship between the Participant and the Managing
+                        Entity (as such term is defined below) is articulated through
+                        the following contractual structure:</p>
+
+                    <ul>
+                        <li>
+                            <p>Through the subscription of this Master Agreement, the
+                                Participant acquires the status of Basic Participant and accepts the
+                                general conditions and ISBE policies applicable to all
+                                members of the ISBE network.</p>
+                        </li>
+                        <li>
+                            <p>To opt for any other higher Participation Level
+                                (<em>i.e.</em> Observer, Service Provider and/or Validator), the
+                                Participant must sign the annex corresponding to said Participation Level
+                                that accompanies this Master Agreement. Each annex
+                                will detail the powers, obligations and limitations specific to that
+                                Participation Level, avoiding the need to sign new independent contracts
+                                in case the Participant wants to modify their Participation
+                                Level.</p>
+
+                            <p>The accession of the Participant to an annex will be made only
+                                once the requirements applicable to the corresponding Participation Level are met
+                                and will follow the application procedures established
+                                by ISBE governance.</p>
+
+                        </li>
+                    </ul>
+
+                </li>
+                <li>
+                    <p>That, both parties having reached an agreement regarding the
+                        collaboration of the Participant in the ISBE network according to the foregoing
+                        recitals, the Parties formalize this
+                        <strong>MASTER AGREEMENT FOR ACCESSION TO THE ISBE NETWORK</strong> (the
+                        "<strong>Master Agreement</strong>"), which will be governed in accordance with and subject
+                        to the following,
+                    </p>
+                </li>
+            </ol>
+
+            <!-- ESTIPULACIONES -->
+            <div class="ui blue segment">
+
+                {{template "estipulaciones_en" .}}
+
+                <div class="ui positive message">
+                    <div class="ui large checkbox">
+                        <input type="checkbox" disabled {{if .ContractCheckBase}}checked{{end}}>
+                        <label>I accept the stipulations of the master agreement</label>
+                        <input type="hidden" name="contract_base" value="{{ .ContractCheckBase }}">
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="ui raised segment" style="border-radius:1rem">
+
+            <h1><strong>MASTER AGREEMENT ANNEXES</strong></h1>
+
+            <p>In Madrid, on {{ .TodayDay }} of {{ .TodayMonth }} of {{ .TodayYear }}</p>
+
+            {{if eq .ContractCheckBasic "on"}}
+            <!-- ANEXO I -->
+            <div class="ui blue segment">
+
+                {{template "anexo_1_en" .}}
+
+                <div class="ui positive message">
+                    <div class="ui large checkbox">
+                        <input type="checkbox" disabled checked>
+                        <label>I accept the terms and conditions of Annex I</label>
+                        <input type="hidden" name="contract_basic" value="on">
+                    </div>
+                </div>
+
+                <p><em>(The general clauses of the Master Agreement continue to apply
+                        in everything not expressly modified by this Annex I.)</em></p>
+
+            </div>
+            {{end}}
+
+            {{if eq .ContractCheckDeveloper "on"}}
+            <div class="ui divider"></div>
+
+            <!-- ANEXO II -->
+            <div class="ui blue segment">
+
+                {{template "anexo_2_en" .}}
+
+                <div class="ui positive message">
+                    <div class="ui large checkbox">
+                        <input type="checkbox" disabled checked>
+                        <label>I accept the terms and conditions of Annex II</label>
+                        <input type="hidden" name="contract_developer" value="on">
+                    </div>
+                </div>
+
+                <p><em>(The general clauses of the Master Agreement continue to apply
+                        in everything not expressly modified by this Annex II.)</em></p>
+
+            </div>
+            {{end}}
+
+            <div class="ui divider"></div>
+
+        </div>
+
+        <input type="hidden" name="auth_code" value="{{ $.authCode }}">
+        <input type="hidden" name="state" value="{{ $.authCodeObj.State }}">
+
+        <div class="ui raised segment" style="border-radius:1rem">
+
+            <h2><strong>ACCEPTANCE AND SIGNATURE</strong></h2>
+
+            <div class="ui segment">
+                <p>Accept and sign the contract</p>
+                <div class="ui two spaced buttons">
+                    <button id="generate-button" class="ui large black circular button">
+                        <i class="check icon"></i> Accept and sign
+                    </button>
+                    <a id="back-button" href="" class="ui large circular button">
+                        <i class="arrow left icon"></i> Go back
+                    </a>
+                </div>
+            </div>
+
+        </div>
+        {{end}}
+
+    </form>
+
+</div>
+<script>
+    $(document).ready(function () {
+        $('#generate-button').on('click', function (e) {
+            e.preventDefault();
+            debugger;
+
+            var contract_form = document.forms["contract_form"];
+            var part = contract_form.elements["participant_name"];
+
+            const data = new FormData(contract_form);
+            for (const pair of data.entries()) {
+                console.log(pair[0], pair[1]);
+            }
+
+            contract_form.submit();
+        });
+
+        $('#back-button').on('click', function (e) {
+            e.preventDefault();
+            window.history.back();
+        });
+    });
+</script>
+
+{{template "postamble"}}
+{{end}}

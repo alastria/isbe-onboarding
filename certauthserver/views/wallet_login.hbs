@@ -1,0 +1,104 @@
+{{template "preamble"}}
+
+{{template "logobar"}}
+
+<div class="ui hidden divider"></div>
+
+<div class="ui container">
+
+   <div class="ui huge header">Entrar con una Credential Verificable</div>
+   <p>
+      Puedes usar dos métodos para entrar en ISBE. Elige el más adecuado a tus necesidades.
+   </p>
+
+
+   <div class="ui stackable two column grid">
+      <div class="column">
+         <div class="ui raised segment">
+            <h3 class="ui center aligned header">
+               Usar un EUDI Wallet en tu móvil
+            </h3>
+            <div class="ui warning message">
+               <div class="header">
+                  ATENCIÓN: Debes usar la aplicación de Wallet, no la cámara del móvil.
+               </div>
+            </div>
+
+            <img class="ui centered  image" src="data:{{.QRcode}}">
+
+            <div class="ui divider"></div>
+
+            <p>Este código QR es especial y solo lo entienden Wallets compatibles con el estándar EUDI Wallet.
+            </p>
+            <p>
+               Si escaneas el QR con la cámara de tu móvil o con cualquier otra aplicación no compatible con el
+               estándar
+               Europeo de Identidad Digital, no lo entenderá y no podrás entrar en ISBE.
+            </p>
+
+
+         </div>
+      </div>
+      <div class="column">
+         <div class="ui raused segment">
+            <h3 class="ui center aligned header">
+               Usar el Wallet en esta máquina
+            </h3>
+
+            <div class="ui basic fitted center aligned segment">
+               <a class="credential ui large black submit circular button" href="{{.Samedevice}}" target="">
+                  Entrar
+               </a>
+            </div>
+
+            <div class="ui divider"></div>
+
+            <p>Si lo deseas, puedes usar un Wallet especial y muy sencillo de usar en esta misma máquina.
+            </p>
+            <p>No necesitas instalar nada, pero por supuesto, debes haber recibido una Credencial Verificable
+               generada por
+               un representante legal de tu organización, autorizándote a poder realizar determinadas operaciones en
+               ISBE.
+            </p>
+
+
+         </div>
+      </div>
+
+   </div>
+
+   <script>
+      // Schedule a poll to the server each second, until either an error or success is received
+      setTimeout(pollServer, 1000);
+
+      async function pollServer(a) {
+         // There will be an HTTP 302 Redirection after this
+         // We will receive the url to invoke as a result from the POST
+         let resp = await fetch("/wallet/poll?state={{.AuthRequestID}}", {
+            cache: "no-cache",
+            mode: "no-cors",
+            redirect: "manual",
+         });
+         if (resp.ok) {
+            const data = await resp.text();
+            if (data === "pending") {
+               // Poll again in 1 second
+               console.log("pending");
+               setTimeout(pollServer, 1000);
+               return;
+            }
+         } else {
+            if (resp.type == "opaqueredirect") {
+               var redirectedURL = resp.url;
+               console.log(redirectedURL);
+               location = redirectedURL;
+            }
+         }
+      }
+   </script>
+
+   <script src="/static/js/prism.js"></script>
+
+</div>
+
+{{template "postamble"}}

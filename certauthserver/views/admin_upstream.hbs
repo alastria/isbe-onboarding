@@ -1,0 +1,57 @@
+{{template "preamble"}}
+
+{{template "header" "upstream"}}
+
+<div style="width: 99%; margin: auto; padding: 10px">
+   <button id="saveButton" class="ui primary button">Save</button>
+</div>
+
+<div style="width: 99%; height: 100%; margin: auto; border: 1px solid #ccc">
+   <div id="fieldmonaco" style="width: 95%; height: 100%; margin: auto"></div>
+</div>
+
+<script type="module">
+   import { monaco, loadCss } from 'https://esm.sh/monaco-esm';
+
+   loadCss();
+
+   console.log('Loading Monaco Editor...');
+   const editor = monaco.editor.create(document.getElementById('fieldmonaco'), {
+      value: {{ .Upstreams }},
+   language: 'json'
+   });
+
+   const saveButton = document.getElementById('saveButton');
+   saveButton.addEventListener('click', async () => {
+      const code = editor.getValue();
+      debugger;
+      console.log('Code to save:', code);
+
+      // Send the code to the server using fetch
+      try {
+         var resp = await fetch('/admin/page/upstream', {
+            method: 'POST',
+            headers: {
+               'Content-Type': 'application/text'
+            },
+            body: code
+         })
+
+         if (resp.ok) {
+            console.log('Code saved successfully');
+            alert('Code saved successfully');
+         } else {
+            console.error('Error saving code:', resp.statusText);
+            alert('Error saving code: ' + resp.statusText);
+         }
+
+      } catch (error) {
+         console.error('Error:', error);
+         alert('Error saving code.');
+
+      }
+
+   });
+</script>
+
+{{template "postamble"}}

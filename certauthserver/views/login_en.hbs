@@ -1,0 +1,69 @@
+{{template "preamble"}}
+
+{{template "logobar"}}
+
+<div class="ui hidden divider"></div>
+
+<div class="ui container">
+
+   <div class="ui huge header">Welcome to ISBE</div>
+   <p>
+      You can use two different methods to log in to ISBE. Choose the one that best suits your needs.
+   </p>
+
+   <div class="ui stackable two column grid">
+      <div class="column">
+         <div class="ui raised segment" style="border-radius:1rem">
+            <h3 class="ui center aligned header">
+               With a representation certificate
+            </h3>
+
+            <div class="ui basic fitted center aligned segment">
+               <a href="/cert/login?code={{ .authCode }}" class="certificate ui large black submit circular button">Use
+                  a certificate</a>
+            </div>
+
+            <div class="ui divider"></div>
+
+            <p>The certificate to use is the same digital certificate with which a legal representative of an
+               organization signs documents on behalf of an organization (e.g. in PDF format) or identifies
+               themselves in the electronic headquarters of the Public Administration to act as a representative 
+               of that organization.
+            </p>
+            <p>Personal digital certificates cannot be used.</p>
+
+
+         </div>
+      </div>
+      <div class="column">
+         <div class="ui raused segment" style="border-radius:1rem">
+            <h3 class="ui center aligned header">
+               With a Verifiable Credential
+            </h3>
+
+            <div class="ui basic fitted center aligned segment">
+               <a href="/wallet/login?code={{ .authCode }}"
+                  class="credential ui large black submit circular button">Use Verifiable Credential</a>
+            </div>
+
+            <div class="ui divider"></div>
+
+            <p>For this identification mechanism, you need the legal representative of your organization to
+               generate a Verifiable Credential for you,
+               declaring that you have certain powers to act on behalf of the company.
+            </p>
+            <p>Of course, if you are a
+               legal representative,
+               you can generate a Verifiable Credential for yourself. But to do so you must first use your
+               representation certificate to enter the system.
+            </p>
+
+
+         </div>
+      </div>
+
+   </div>
+
+</div>
+
+{{template "postamble"}}

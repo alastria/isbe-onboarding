@@ -1,0 +1,55 @@
+{{ define "preamble_monaco" }}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}} - Admin Dashboard</title>
+    <link rel="stylesheet" href="/static/css/w3css.css">
+
+    <style>
+        .margin-bottom-small {
+            margin-bottom: 4px !important;
+        }
+    </style>
+    <style>
+        /* Make the editor fill the page */
+        html,
+        body,
+        #container {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+        }
+    </style>
+
+
+</head>
+
+<body>
+
+
+    <!-- Sidebar -->
+    <div class="w3-sidebar w3-bar-block" style="width:150px;">
+
+        <div class="company-logo">
+            <a href="https://redisbe.com">
+                <img src="/static/images/isbe_logo_image.svg" alt="nextgeneration" width="220" height="53"
+                    loading="lazy" />
+                <img src="/static/images/isbe_logo_text.svg" alt="nextgeneration" width="220" height="53"
+                    loading="lazy" />
+            </a>
+        </div>
+
+        <a href="/admin" class="w3-bar-item w3-button w3-large">Home</a>
+        <a href="/admin/relyingparties" class="w3-bar-item w3-button">Relying Parties</a>
+        <a href="/admin/organizations" class="w3-bar-item w3-button">Organizations</a>
+    </div>
+
+    {{template "logobar_monaco" .}}
+
+    <!-- Page Content -->
+    <div style="margin-left:150px;height:100%;">
+        {{ end }}

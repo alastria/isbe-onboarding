@@ -1,0 +1,142 @@
+{{define "sendemail"}}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verificación de correo electrónico - {{.AppName}}</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .header p {
+            color: #7f8c8d;
+            margin: 10px 0 0 0;
+        }
+
+        .verification-code {
+            background-color: #f8f9fa;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .verification-code h2 {
+            color: #495057;
+            margin: 0;
+            font-size: 32px;
+            letter-spacing: 4px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .info {
+            background-color: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .info h3 {
+            margin: 0 0 10px 0;
+            color: #1976d2;
+        }
+
+        .info ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .info li {
+            margin: 5px 0;
+        }
+
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+            text-align: center;
+            color: #6c757d;
+            font-size: 12px;
+        }
+
+        .warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #856404;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+
+            <h1>Verificación de correo electrónico</h1>
+            <p>{{.AppName}} - Servicio de registro en ISBE</p>
+        </div>
+
+        <p>Te estás registrando en ISBE utilizando tu certificado eIDAS. Para completar el proceso de autenticación,
+            introduce el siguiente código de verificación:</p>
+
+        <div class="verification-code">
+
+            <h2>{{.VerificationCode}}</h2>
+        </div>
+
+        <div class="info">
+            <h3>Información importante:</h3>
+            <ul>
+                <li>Este código es válido hasta {{.ExpiresAt.Format "15:04"}} ({{.ExpiresAt.Format "02/01/2006"}})</li>
+                <li>No compartas este código con nadie</li>
+                <li>Si no solicitaste esta verificación, ignora este correo electrónico</li>
+                <li>Esta verificación garantiza que controlas la dirección de correo electrónico asociada con tu
+                    certificado</li>
+            </ul>
+        </div>
+
+        <div class="warning">
+            <strong>Notificación de seguridad:</strong> Este código de verificación es necesario para garantizar que
+            controlas la dirección de correo electrónico asociada con tu certificado. Necesitamos el correo en caso de
+            que tengamos que contactarte.
+        </div>
+
+        <div class="footer">
+            <p>Este es un mensaje automático de {{.AppName}}. No responda a este correo electrónico.</p>
+            <p>Si tienes alguna pregunta, por favor, contacta con email:soporte@redisbe.com.</p>
+        </div>
+    </div>
+</body>
+
+</html>
+{{end}}

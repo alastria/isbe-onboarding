@@ -1,0 +1,221 @@
+{{define "anexo_3_en"}}
+<h2><strong>Annex III – Specific Conditions of Level 3: Validator </strong></h2>
+<details>
+<summary>See Annex III </summary>
+<ol>
+<li>
+<h3><strong>Applicability: </strong></h3>
+<p>This Annex III will govern in the event that the Participant is
+                selected and authorized as Validator of the ISBE network. The subscription
+                of this annex accredits the Participant to operate a Consensus Node
+                in the ISBE infrastructure, with the rights and responsibilities that
+                it implies. </p>
+</li>
+<li>
+<h3><strong>Purpose of the Annex: </strong></h3>
+<p>Establish the particular conditions under which the
+                Participant will perform the Validator Participation Level,
+                considered critical for the security and operation of the ISBE network,
+                participate in the consensus and validation mechanism
+                transactions. </p>
+<p>This annex complements the Framework Contract by specifying commitments
+                technical, service levels and economic compensations associated with the
+                operation of a Consensus Node. </p>
+</li>
+<li>
+<h3><strong>Qualification as Validator: </strong></h3>
+<p>To qualify for the Validator Participation Level, the Participant
+                you must: <em><strong>(Yo) </strong></em>be an active Core Participant
+                and fulfill its obligations to the satisfaction of the Managing Entity; <em><strong>(ii) </strong></em>demonstrate technical capacity and resources
+                sufficient to operate a validator node in accordance with the
+                specifications of Policy INF1040 (hardware requirements,
+                connectivity, security); <em><strong>(iii) </strong></em>overcome the
+                technical tests that the Managing Entity deems necessary ( <em>e.g. </em>connectivity testing in a <em>testnet </em>); and <em><strong>(iv) </strong></em>sign this annex, formalizing
+                their commitment to act diligently in the validation tasks and
+                comply with the operational guidelines given. </p>
+<p>The Managing Entity, after evaluating compliance with the
+                requirements described above and depending on the needs of the
+                ISBE network, will approve the incorporation of the Participant to the set of
+                authorized validators. </p>
+<p>You will be provided with keys, certificates or <em>whitelist </em>necessary for your Consensus Node to be recognized by the ISBE network
+                (process of <em>permitted </em>of its node), as well as the information
+                configuration (addresses) <em>bootnodes </em>, QBFT parameters,
+                etc.). </p>
+<p>The Participant will join either as an active validator or in status
+                waiting ( <em>standby </em>), according to the rotation scheme in force in
+                every moment. </p>
+</li>
+<li>
+<h3><strong>Obligations of the Validator: </strong></h3>
+<ol type="a">
+<li>
+<p><em><u>Consensus Node Operation </u></em>: The Participant
+                        undertakes to operate a Consensus Node of the ISBE network in a manner
+                        continuous and in accordance with the established technical specifications. This
+                        involves enabling a dedicated execution environment, with <em>hardware </em>and <em>software </em>approved ( <em>e.g. </em>run a client <em>Hyperledger Besu </em>in approved version), and
+                        keep it running 24/7 to participate in the validation of
+                        blocks. </p>
+<p>You must implement all bastion and cybersecurity measures
+                        indicated in policy INF1040, such as: <em><strong>(Yo) </strong></em>isolation of the machine (not running
+                        unnecessary services); <em><strong>(ii) </strong></em>configuration in
+                        secure network ( <em>firewalls </em>, opening only required ports); <em><strong>(iii) </strong></em>validation key protection
+                        (secure storage, possibly with HSM); and <em><strong>(iv) </strong></em>timely update of <em>software </em>when security patches are released. </p>
+<p>You must also follow the instructions on rotation between states
+                        active and passive of its Consensus Node if the governance so determines
+                        to balance participation. </p>
+</li>
+<li>
+<p><em><u>Availability and performance </u></em>: The Participant
+                        You must maintain a high level of availability of your Consensus Node,
+                        looking for a <em>uptime </em>close to 100% and minimizing latency
+                        in the signing and transmission of blocks. </p>
+<p>Policy INF1040 defines Service Level Agreements
+                        (“ <strong>SLAs </strong>") specific ( <em>e.g. </em>a percentage
+                        minimum number of signed blocks and a maximum tolerated latency) that the
+                        Participant agrees to comply. </p>
+<p>Currently, reference metrics are established such as: <em><strong>(Yo) </strong></em>monthly availability &gt; 99%; <em><strong>(ii) </strong></em>absence of long disconnections; <em><strong>(iii) </strong></em>signing of at least [●]% of shifts
+                        assigned validation, etc. These metrics are monitored
+                        constantly through the system <em>health-check </em>from ISBE. The
+                        Participant accepts that said metrics are recorded and used
+                        to evaluate its performance, agreeing that the Managing Entity
+                        access the data of your Consensus Node necessary for said
+                        monitoring. </p>
+</li>
+<li>
+<p><em><u>Active participation in the consensus </u></em>:The
+                        Participant will act diligently in the proposal and signing of blocks
+                        under the QBFT algorithm (Istanbul BFT using ISBE). </p>
+<p>You must not unjustifiably refuse to validate transactions or
+                        introduce deliberate delays. </p>
+<p>If for any technical reason you need to pause your participation (for
+                        maintenance, for example), will coordinate it with the Managing Entity to
+                        be temporarily replaced or put on standby status <em>standby </em>without
+                        affect the <em>quorum </em>validation. </p>
+</li>
+<li>
+<p><em><u>Limitations and proper use </u></em>: The Participant does not
+                        will use your Consensus Node for purposes other than validation. In
+                        Specifically, you are prohibited from using it to deploy contracts
+                        intelligent, to serve general network read traffic or to
+                        connect it to corporate systems of the Participant other than the
+                        monitoring it. </p>
+<p>The Consensus Node must remain in the location and conditions
+                        declared; any material change ( <em>e.g. </em>move it from center
+                        change significant settings) must be notified and
+                        may require a new inspection or approval. </p>
+<p>If the Participant wishes to temporarily or permanently cease the
+                        operation of its Consensus Node, it will communicate it in advance
+                        sufficient (except force majeure) for the Managing Entity to take measures
+                        (e.g. appoint a new Validator in its place). </p>
+</li>
+<li>
+<p><em><u>INF1040 Compliance </u></em>: In general, the
+                        Participant will comply with all applicable sections of the Policy
+                        INF1040, which are considered reproduced here. In summary: <em><strong>(Yo) </strong></em>keep updated <em>software </em>to the required version; <em><strong>(ii) </strong></em>apply
+                        recommended security settings; <em><strong>(iii) </strong></em>attend to monitoring alerts
+                        ( <em>e.g. </em>If your Consensus Node falls behind in height
+                        block or presents synchronization errors, you must intervene
+                        immediate); and <em><strong>(iv) </strong></em>respect the procedures
+                        of depermission in case of cessation (the Consensus Node will be eliminated
+                        from the list of validators in an ordered manner). </p>
+</li>
+<li>
+<p><em><u>Collaboration with technical governance </u></em>:The
+                        Participant will participate, to the extent possible, in meetings or
+                        validator technical forums that the Managing Entity convenes to
+                        coordinate improvements, discuss performance parameters or other aspects
+                        of the network's operation. In addition, the Participant will contribute
+                        truthful information about your Consensus Node when required to
+                        diagnoses ( <em>e.g. </em> <em>logs </em>relevant to a
+                        incident). </p>
+<p>If you are prompted to implement any configuration changes or patches
+                        urgent for security reasons, the Participant will do so without delay
+                        following the instructions provided. </p>
+</li>
+</ol>
+</li>
+<li>
+<h3><strong>Remuneration and costs: </strong></h3>
+<p>In order to encourage the contribution of Validators and compensate
+                the dedicated resources, ISBE provides for periodic financial compensation
+                to the Participant for the operation of its Consensus Node, conditioned on the
+                Satisfactory compliance with agreed service SLAs. This
+                Compensation may take the form of a fixed or variable amount
+                ( <em>e.g. </em>a monthly amount in euros or tokens, or a bonus
+                per validated block), as defined in the approved economic model
+                by ISBE governance. </p>
+<p>In any case, payment will be subject to the Participant having
+                maintained the required availability and performance standards
+                during the corresponding period. </p>
+<p>Minor breaches could lead to proportional reductions
+                in remuneration, while serious or repeated breaches
+                may result in the total loss of compensation for that period and
+                eventually the revocation of the role as Validator. </p>
+<p>The exact conditions of remuneration (amount, frequency of payment,
+                currency, method) will be detailed in an annexed document or table approved by
+                the ISBE Board of Directors, which may review them periodically in
+                depending on the available budget and the evolution of the network. </p>
+<p>Any change in the remuneration policy will be notified to
+                the Validators in advance and, if any Validator does not accept it, this
+                may resign from the role without penalty. </p>
+<p>All costs associated with the installation and maintenance of the Node
+                of Consensus (equipment of <em>hardware </em>, Internet connection
+                high availability, electricity consumption, services <em>cloud </em>yes
+                applies, technical personnel) will be assumed entirely by the
+                Participant. The compensation provided by ISBE is intended to help
+                bear those costs, but the Participant understands that he or she may not
+                cover them in their entirety. </p>
+<p>Likewise, it is stated that any general rate of
+                membership applicable to the Basic Participant Participation Level
+                still applies to the Validator. That is, participation as
+                Validator does not exempt from the payment of annual fees due to being
+                Validator). </p>
+<p>Collaboration as a Validator is voluntary and does not generate a relationship
+                any employment with the Managing Entity or with the other participants; if
+                It is a civil compensation for a technical service provided to the
+                ecosystem. The Participant is free to organize human resources or
+                technical resources intended to operate the Consensus Node, under its own
+                responsibility. </p>
+</li>
+<li>
+<h3><strong>Non-compliance with SLAs and sanctions: </strong></h3>
+<p>If the Participant repeatedly fails to meet the performance metrics
+                established performance (for example, it has low availability or high
+                latency continuously), the Managing Entity may apply measures
+                correctives. </p>
+<p>Firstly, it will notify the Participant so that they can correct the
+                deficiencies within a given period. If the problems persist, the
+                Managing Entity may temporarily suspend the Consensus Node of the
+                participation in consensus (passing it to <em>standby </em>or removing it from
+                the list of active validators) and even revoke the condition of
+                Validator of the Participant by terminating this annex by
+                non-compliance. This revocation would preferably be done with the agreement
+                of the Participant; otherwise it will be channeled through the
+                forced withdrawal procedure provided for in the Framework Contract (and may
+                lead to total expulsion if non-compliance seriously compromised
+                the network). </p>
+<p>Additionally, a Validator who repeatedly fails to comply with the
+                established performance metrics may lose the right to
+                compensation during the affected periods, as indicated. </p>
+</li>
+<li>
+<h3><strong>Termination of the Validator role: </strong></h3>
+<p>The Participant may voluntarily cease as Validator
+                notifying it at least 1 month in advance so that the Entity
+                Manager reorganize the consensus without its Consensus Node. After the
+                deadline, you will be removed from the list of validators and will have no effect
+                this annex, remaining as a Basic Participant or other Levels of
+                Participation that you had, unless you requested total withdrawal. </p>
+<p>In case of voluntary resignation, the Participant undertakes to
+                cooperate in the transition, for example, by providing evidence of
+                secure termination (key deletion, etc.). </p>
+<p>The Managing Entity may finalize this annex if, due to changes
+                structures in the network, the number of validators is reduced or
+                modifies the consensus model. In this case, it will try to agree with
+                the Participant transitions to an alternative role ( <em>e.g. </em>Observer)
+                or voluntary withdrawal, as preferred, and will pay any compensation
+                accrued until the date of termination. </p>
+</li>
+</ol>
+</details>
+{{end}}

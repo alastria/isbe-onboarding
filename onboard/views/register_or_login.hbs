@@ -1,0 +1,41 @@
+{{define "register_or_login"}}
+{{template "partials/preamble"}}
+
+{{template "partials/logobar"}}
+
+<div class="ui hidden divider"></div>
+
+<div class="ui container" style="max-width: 800px;">
+
+    <div class="ui huge header">Bienvenido a ISBE</div>
+
+    <h3 class="ui header">¿Qué es lo que deseas hacer?</h3>
+
+    <div class="ui hidden divider"></div>
+
+    <div class="ui grid">
+        <a class="eight wide column" href="/register">
+            <div class="ui raised segment" style="border-radius:1rem">
+                <h4 class="ui header">Registrarme en ISBE</h4>
+                <p style="color:black">Antes de poder usar todos los servicios de ISBE, debes registrar a tu
+                    organización.
+                    Es un proceso sencillo, que solo necesita de un certificado de representante.
+                </p>
+                <p style="color:black">Haz click aquí para iniciar el proceso.</p>
+            </div>
+        </a>
+        <a class="eight wide column" href="/login">
+            <div class="ui raised segment" style="border-radius:1rem">
+                <h4 class="ui header">Entrar en mi área privada</h4>
+                <p style="color:black">Si ya te has registrado, puedes entrar a tu áera privada para disfrutar de todos
+                    los servicios disponibles.
+                </p>
+                <p style="color:black">Haz click aquí para entrar.</p>
+            </div>
+        </a>
+    </div>
+
+</div>
+
+{{template "partials/postamble"}}
+{{end}}

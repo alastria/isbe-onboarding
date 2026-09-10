@@ -1,0 +1,67 @@
+package database
+
+import (
+	"database/sql"
+	"encoding/json"
+	"log/slog"
+
+	"github.com/alastria/isbe-onboarding/contract"
+	"github.com/alastria/isbe-onboarding/internal/errl"
+	"github.com/alastria/isbe-onboarding/internal/models"
+	"github.com/alastria/isbe-onboarding/types"
+)
+
+func init() {
+	RegisterMigration("20260412T121700", migration_up_20260412T121700, nil)
+}
+
+func migration_up_20260412T121700(tx *sql.Tx) error {
+
+	// We will generate the PDF document using the data from the contract_form
+	// and store the name of the PDF document in the contract_document_name column.
+
+	// First, we need to get all the registrations
+	query := `
+		SELECT email, json(contract_form), contract_document
+		FROM registrations 
+	`
+
+	rows, err := tx.Query(query)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var email, formData string
+		var contractDocument []byte
+		if err := rows.Scan(&email, &formData, &contractDocument); err != nil {
+			return err
+		}
+
+		var contractForm models.ContractForm
+		if err := json.Unmarshal([]byte(formData), &contractForm); err != nil {
+			return errl.Errorf("failed to unmarshal form data: %w", err)
+		}
+		// Generate the PDF document
+		// Generate the PDF contract in memory
+		contractDocument, err := contract.Generate(&contractForm, types.LOCAL)
+		if err != nil {
+			slog.Error("failed to generate contract", "error", errl.Error(err))
+			continue
+		}
+
+		updateQuery := `
+			UPDATE registrations 
+			SET contract_document_name = ? 
+			WHERE email = ?
+		`
+
+		// Store the PDF document name
+		if _, err := tx.Exec(updateQuery, "contract_"+".pdf", email); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}

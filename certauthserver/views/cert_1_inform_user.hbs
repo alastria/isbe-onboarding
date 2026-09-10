@@ -1,0 +1,88 @@
+{{define "inform_user"}}
+{{template "preamble" .}}
+{{template "logobar" .}}
+
+<div class="ui hidden divider"></div>
+
+<div class="ui container">
+
+    <div class="ui raised segment" style="border-radius:1rem">
+
+        <div class="ui five ordered stackable steps">
+            <div class="active step">
+                <div class="content">
+                    <div class="title">Certificado</div>
+                    <div class="description">Seleccionar certificado</div>
+                </div>
+            </div>
+            <div class="disabled step">
+                <div class="content">
+                    <div class="title">Email</div>
+                    <div class="description">Proporcionar email</div>
+                </div>
+            </div>
+            <div class="disabled step">
+                <div class="content">
+                    <div class="title">Verificar Email</div>
+                    <div class="description">Introducir código</div>
+                </div>
+            </div>
+            <div class="disabled step">
+                <div class="content">
+                    <div class="title">Contrato</div>
+                    <div class="description">Completar datos</div>
+                </div>
+            </div>
+            <div class="disabled step">
+                <div class="content">
+                    <div class="title">Completado</div>
+                    <div class="description">Revisar y aceptar contrato</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+
+    <div class="ui raised segment" style="border-radius:1rem">
+
+        <h2 class="ui huge header">Entrar con un certificado de representación</h2>
+
+        <div class="ui warning message">
+            <div class="header">
+                NOTA: Serás enviado a un sitio seguro donde tu navegador te solicitará que selecciones
+                uno de los certificados que tienes instalados en tu navegador.
+                Si no tienes ningún certificado instalado, tu navegador the mostrará un error indicandote este
+                hecho.
+            </div>
+        </div>
+
+        <div class="ui basic fitted center aligned segment">
+            <a href="{{ .certsecURL }}/auth?code={{ .authCode }}"
+                class="certificate ui large black submit circular button">Usar un certificado</a>
+        </div>
+
+        <div class="ui divider"></div>
+
+        <p>El certificado a usar es el mismo certificado digital con el que un representante legal de una
+            organización firma documentos en nombre de una organización (por ejemplo en formato PDF) o se
+            identifica en las sedes electrónicas
+            de la Adminitración Pública para actuar como representante de esa organización.
+        </p>
+        <p>Los certificados digitales de persona física no se pueden utilizar.</p>
+
+        <div class="ui divider"></div>
+
+        <p>Si ya estás registrado, usarás tu certificado para entrar en tu área privada.
+            Si no, te pediremos tu correo electrónico, lo verificaremos y te registraremos en el sistema.
+        </p>
+        <p>
+            Si te has registrado o entrado recientemente, te llevaremos directamente a tu área privada..
+        </p>
+
+    </div>
+
+</div>
+
+{{template "postamble" .}}
+{{end}}

@@ -1,0 +1,21 @@
+{
+    "geminicodeassist.inlineSuggestions.nextEditPredictions": true,
+    "geminicodeassist.languages": [
+        "go",
+        "html",
+        "javascript"
+    ],
+    "geminicodeassist.updateChannel": "Insiders",
+    "geminicodeassist.chat.changeView": "Default diff view",
+    "geminicodeassist.rules": "prefer to use the gotools mcp server for anything related to go code\n\n\n\n",
+    "emeraldwalk.runonsave": {
+        "commands": [
+            {
+                "match": ".*\\.md$",
+                "isAsync": true,
+                "cmd": "pandoc \"${file}\" -f markdown -t html  --reference-location=section --toc --toc-depth=2 --lua-filter=\"${fileDirname}/anchors.lua\" -o \"${fileDirname}/${fileBasenameNoExt}.html\""
+            }
+        ]
+    },
+    "html.format.extraLiners": "head, body, /html, h1, h2"
+}

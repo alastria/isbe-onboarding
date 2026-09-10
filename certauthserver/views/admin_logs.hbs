@@ -1,0 +1,29 @@
+{{template "preamble"}}
+
+{{template "header" "logs"}}
+
+<div style="width:99%;margin:auto;padding:10px;">
+
+    {{range .LogEntries}}
+    {{if eq .Level "ERROR"}}
+    <div class="ui red segment">
+        <strong><span class="ui red text">{{.Level}}</span></strong>: {{.Content}}
+    </div>
+    {{else if eq .Level "WARN"}}
+        <div class="ui yellow segment">
+            <strong><span class="ui yellow text">{{.Level}}</span></strong>: {{.Content}}
+        </div>
+        {{else if eq .Level "INFO"}}
+            <div class="ui blue segment">
+                <strong><span class="ui blue text">{{.Level}}</span></strong>: {{.Content}}
+            </div>
+            {{else if eq .Level "DEBUG"}}
+                <div class="ui green segment">
+                    <strong><span class="ui green text">{{.Level}}</span></strong>: {{.Content}}
+                </div>
+                {{end}}
+                {{end}}
+
+</div>
+
+{{template "postamble"}}

@@ -1,0 +1,1122 @@
+
+
+<!DOCTYPE html>
+<html>
+
+<head>
+    
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>ISBE Onboarding</title>
+    <link rel="stylesheet" href="/static/semantic.css">
+
+    <script src="/static/semantic.js"></script>
+
+</head>
+
+<body style="background-image: url('/static/images/isbe_background.png')">
+
+
+    <style>
+        .contract-input {
+            border: none;
+            border-bottom: 1px solid #555;
+            background-color: #f4f7fa;
+            padding: 4px 6px;
+            margin: 0 2px;
+            font-family: inherit;
+            font-size: 0.95em;
+            color: #222;
+            border-radius: 2px;
+            transition: all 0.2s ease;
+        }
+
+        .contract-input:focus {
+            outline: none;
+            border-bottom: 2px solid #2185d0;
+            background-color: #e0e7ff;
+        }
+
+        select.contract-input {
+            padding-right: 20px;
+            cursor: pointer;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        summary {
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .contract-text li {
+            font-size: 1.2rem;
+            line-height: 1.4285em;
+        }
+
+        p {
+            font-size: 1.2rem;
+        }
+
+        p:last-child,
+        p:first-child {
+            margin-bottom: 1rem;
+        }
+
+        input:invalid {
+            border: 1px dashed red;
+        }
+
+        input:valid {
+            border: 1px solid black;
+        }
+    </style>
+
+    <div class="ui hidden divider"></div>
+
+    <div class="ui container">
+
+        <div class="ui raised segment" style="border-radius:1rem">
+
+            <div class="ui five ordered stackable steps">
+                <div class="completed step">
+                    <div class="content">
+                        <div class="title">Certificado</div>
+                        <div class="description">Seleccionar certificado</div>
+                    </div>
+                </div>
+                <div class="completed step">
+                    <div class="content">
+                        <div class="title">Email</div>
+                        <div class="description">Proporcionar email</div>
+                    </div>
+                </div>
+                <div class="completed step">
+                    <div class="content">
+                        <div class="title">Verificar Email</div>
+                        <div class="description">Introducir código</div>
+                    </div>
+                </div>
+                <div class="completed step">
+                    <div class="content">
+                        <div class="title">Contrato</div>
+                        <div class="description">Completar datos</div>
+                    </div>
+                </div>
+                <div class="active step">
+                    <div class="content">
+                        <div class="title">Completado</div>
+                        <div class="description">Revisar y aceptar contrato</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+
+        
+
+        <div class="ui raised segment" style="border-radius:1rem">
+
+            <h1 id="contrato-marco-de-adhesión-a-la-red-isbe"><strong>CONTRATO MARCO DE ADHESIÓN A LA RED
+                    ISBE</strong>
+            </h1>
+
+            <p>En Madrid, a 9 de 4 de 2026</p>
+
+            <h2 class="text-center"><strong>REUNIDOS</strong></h2>
+
+            
+            <p>De una parte, Asociación Consorcio Red Alastria, con domicilio social en
+                C/ Alberto Aguilera, 23 (Universidad Pontificia de Comillas-ICADE), 28015-Madrid
+                (España), y con N.I.F. número G87936159, inscrita en la Sección Primera del Registro
+                Nacional de Asociaciones con el número 616096, y teléfono +34 683 49 37 48
+                (en adelante “Alastria” o la “Asociación”).
+            </p>
+
+            
+            <p>Y de otra parte, Test Org,
+                persona jurídica constituida conforme a las leyes de
+                ES,
+                con domicilio social en
+                Test Address
+                y N.I.F. número
+                VAT-ES-12345678X,
+                inscrita en el Registro Mercantil de
+                
+                al tomo
+                , folio
+                , hoja
+                ,
+                representada en este acto por
+                
+                Test User,
+                con correo electrónico
+                test@example.com,
+                según acredita mediante escritura otorgada ante el Notario de
+                ,
+                 , el  de
+                ,
+                , con el número
+                 de su protocolo
+                (en adelante, el “<strong>Participante</strong>”).
+            </p>
+
+            <p>Ambas partes, en adelante denominadas conjuntamente como “<strong>las Partes</strong>”,
+                reconocen tener la capacidad jurídica y de obrar necesaria y suficiente para
+                contratar y obligarse en la representación que ostentan, en especial para
+                formalizar el presente Contrato Marco de Adhesión a la red ISBE. Reconociéndose
+                mutuamente tal capacidad, los comparecientes,
+            </p>
+
+            
+
+            <h2 class="text-center"><strong>EXPONEN</strong></h2>
+
+            <ol type="I">
+                <li>
+                    <p>Que ISBE es una infraestructura de blockchain
+                        público-permisionada de ámbito nacional, cuya gobernanza explícita y
+                        sistema de niveles de participación garantizan un equilibrio entre la
+                        apertura del ecosistema y los requisitos de seguridad, resiliencia y
+                        cumplimiento jurídico.</p>
+                </li>
+                <li>
+                    <p>Que la red ISBE opera bajo un modelo público-permisionado, lo que
+                        significa que, si bien se trata de una infraestructura abierta y
+                        colaborativa, el acceso a ciertas funcionalidades está restringido a
+                        participantes autorizados según su nivel de participación (el
+                        “<strong>Nivel de Participación</strong>”). El ecosistema se estructura
+                        en los siguientes Niveles de Participación :</p>
+
+                    <ol type="a">
+                        <li>
+                            <p>Nivel 0: Participante Básico.</p>
+                        </li>
+                        <li>
+                            <p>Nivel 1: Observador.</p>
+                        </li>
+                        <li>
+                            <p>Nivel 2: Proveedor de Servicios.</p>
+                        </li>
+                        <li>
+                            <p>Nivel 3: Validador.</p>
+                        </li>
+                    </ol>
+                </li>
+                <li>
+                    <p>Que cada uno de los referidos Niveles de Participación tiene unas
+                        capacidades operativas y responsabilidades específicas dentro de la red
+                        ISBE, siendo acumulativos y evolutivos, pudiendo el Participante
+                        ostentar simultáneamente más de un Nivel de Participación, de acuerdo
+                        con las funciones que desempeñe en la red y las capacidades operativas y
+                        responsabilidades asociadas a cada Nivel de Participación. Por ejemplo,
+                        un Participante puede actuar simultáneamente como Validador y Proveedor
+                        de Servicios, cumpliendo las obligaciones correspondientes a ambos
+                        Niveles de Participación.</p>
+                </li>
+                <li>
+                    <p>Que la relación jurídica entre el Participante y la Entidad
+                        Gestora (según dicho término queda definido más adelante) se articula a
+                        través de la siguiente estructura contractual:</p>
+
+                    <ul>
+                        <li>
+                            <p>Mediante la suscripción del presente Contrato Marco, el
+                                Participante adquiere la condición de Participante Básico y acepta las
+                                condiciones generales y políticas de ISBE aplicables a todos los
+                                miembros de la red ISBE.</p>
+                        </li>
+                        <li>
+                            <p>Para optar a cualquier otro Nivel de Participación superior
+                                (<em>i.e.</em> Observador, Proveedor de Servicios y/o Validador), el
+                                Participante deberá suscribir el anexo correspondiente a dicho Nivel de
+                                Participación que acompaña el presente Contrato Marco. Cada anexo
+                                detallará las facultades, obligaciones y limitaciones propias de ese
+                                Nivel de Participación, evitando la necesidad de firmar nuevos contratos
+                                independientes en caso de que el Participante quiera modificar su Nivel
+                                de Participación.</p>
+
+                            <p>La adhesión del Participante a un anexo se realizará únicamente una
+                                vez cumplidos los requisitos aplicables al Nivel de Participación
+                                correspondiente y seguirá los procedimientos de solicitud establecidos
+                                por la gobernanza de ISBE.</p>
+
+                        </li>
+                    </ul>
+
+                </li>
+                <li>
+                    <p>Que, habiendo llegado ambas partes a un acuerdo respecto a la
+                        colaboración del Participante en la red ISBE conforme a lo indicado en
+                        los expositivos anteriores, las Partes formalizan el presente
+                        <strong>CONTRATO MARCO DE ADHESIÓN A LA RED ISBE</strong> (el
+                        “<strong>Contrato Marco</strong>”), que se regirá con arreglo y sujeción
+                        a las siguientes,
+                    </p>
+                </li>
+            </ol>
+
+            
+            <div class="ui blue segment">
+
+                
+
+<h1><strong>Estipulaciones del Contrato Marco</strong></h1>
+<details>
+    <summary>Ver Estipulaciones</summary>
+
+    <h3 id="primera.-objeto"><a href="#primera.-objeto">PRIMERA.— OBJETO</a></h3>
+    <ol type="1">
+        <li>
+            <p>
+                El presente Contrato Marco tiene por objeto establecer el régimen jurídico general de adhesión y
+                participación en la red ISBE y la relación jurídica entre la Entidad Adherente y la Entidad Gestora,
+                marco que resulta aplicable a toda entidad que ostente la condición de Participante con independencia
+                del o de los Niveles de Participación que asuma.
+            </p>
+        </li>
+        <li>
+            <p>
+                Los derechos, capacidades operativas, limitaciones y obligaciones específicos de cada Nivel de
+                Participación se desarrollan y concretan en los correspondientes Anexos de Rol que, en su caso,
+                suscriba la Entidad Adherente en su condición de Participante, los cuales forman parte integrante de
+                este Contrato Marco y lo complementan.
+            </p>
+        </li>
+        <li>
+            <p>
+                La firma del presente Contrato Marco por sí sola no confiere a la Entidad Adherente la condición de
+                Participante de la red ISBE. Para adquirir dicha condición será necesaria, en todo caso, la
+                suscripción simultánea del Contrato Marco y de, al menos, un Anexo de Rol relativo a uno de los
+                Niveles de Participación disponibles, quedando desde ese momento sometida la Entidad Adherente tanto
+                al régimen general de este Contrato Marco como al régimen específico del/los Anexo/s de Rol
+                suscrito/s.
+            </p>
+        </li>
+        <li>
+            <p>
+                La asunción posterior de nuevos Niveles de Participación por parte de la Entidad Adherente requerirá
+                la firma de los Anexos de Rol adicionales correspondientes y la previa verificación por la Entidad
+                Gestora del cumplimiento de los requisitos aplicables en cada caso, de conformidad con las Políticas
+                ISBE. La terminación de un determinado Anexo de Rol no afectará, salvo pacto expreso en contrario o
+                que sea el único Anexo de Rol, a la vigencia del presente Contrato Marco ni a los restantes Niveles
+                de Participación que la Entidad Adherente mantenga vigentes.
+            </p>
+        </li>
+    </ol>
+    <h3 id="segunda.-definiciones"><a href="#segunda.-definiciones">SEGUNDA.— DEFINICIONES</a></h3>
+    <p>
+        A efectos de este Contrato Marco, los siguientes términos tendrán el significado que a continuación se
+        indica:
+    </p>
+    <ul>
+        <li>
+            <p>
+                “<strong>ISBE</strong>”: Siglas de Infraestructura de Servicios Blockchain de España, red blockchain
+                de carácter público-permisionado impulsada por administraciones públicas y entidades privadas,
+                alineada con las directrices europeas en materia de interoperabilidad y confianza digital. Incluye un
+                conjunto de redes (red base y redes de Casos de Uso, entre otras) diseñadas para soportar
+                aplicaciones con distintos niveles de apertura y requisitos normativos.
+            </p>
+        </li>
+        <li>
+            <p>
+                “<strong>Entidad Gestora</strong>”: Entidad responsable de la gestión operativa, técnica y de
+                gobernanza de la red ISBE, habilitada para suscribir el presente Contrato Marco en representación de
+                la red. Ejerce las competencias de administración que correspondan, incluyendo la admisión de
+                participantes, supervisión del cumplimiento de políticas y eventual exclusión de Participantes por
+                incumplimiento.
+            </p>
+        </li>
+        <li>
+            <p>
+                “<strong>Políticas ISBE</strong>”: Conjunto de políticas internas que rigen diversos aspectos de la
+                red ISBE y de su ecosistema, aprobadas por la Entidad Gestora en el ejercicio de sus funciones de
+                gobernanza. Algunas de estas políticas resultan de aplicación interna a la Entidad Gestora y a los
+                órganos de gobierno de ISBE, mientras que otras son de obligado cumplimiento para las Entidades
+                Adherentes en general o para determinadas Entidades Adherentes en función de su Nivel o Niveles de
+                Participación. La versión vigente de las Políticas ISBE y su ámbito de aplicación se mantendrán
+                actualizadas y disponibles a través del portal ISBE u otros canales habilitados al efecto, sin
+                perjuicio de la indicación específica de políticas aplicables que figure en las tablas incluidas en
+                cada Anexo de Rol. El régimen de aprobación, modificación y prevalencia de las Políticas ISBE frente
+                al presente Contrato Marco será el previsto en la cláusula Séptima. Las Políticas ISBE que, según
+                dicha información vigente en cada momento, resulten aplicables a la Entidad Adherente se considerarán
+                incorporadas al presente Contrato Marco por referencia y serán de obligado cumplimiento para esta en
+                el ámbito de su participación en ISBE.
+            </p>
+        </li>
+        <li>
+            <p>
+                <strong>“Participante”</strong>: Persona jurídica que ha suscrito el presente Contrato Marco y, de
+                forma simultánea o sucesiva, uno o varios Anexos de Rol relativos a los Niveles de Participación
+                previstos, habiendo superado el proceso de verificación <em>Know Your Business</em> (KYB) y los demás
+                requisitos establecidos en las Políticas ISBE.
+            </p>
+        </li>
+        <li>
+            <p>
+                “<strong>Básico</strong>”: Nivel de Participación que confiere a la Entidad Adherente un conjunto de
+                capacidades operativas limitadas y no intrusivas sobre la red ISBE, permitiéndole, en los términos
+                que se concreten en las Políticas ISBE: <strong><em>(i)</em></strong> acceder al área privada y al
+                portal de ISBE; <strong><em>(ii)</em></strong> utilizar librerías y asistentes (<em>wizards</em>) de
+                contratos inteligentes preconfigurados en modalidades de despliegue no programático y supervisado; y
+                <strong><em>(iii)</em></strong> utilizar los servicios básicos que ISBE ponga a disposición de sus
+                Participantes (incluyendo, en su
+                caso, servicios de notarización y registro de evidencias); <strong><em>(iv)</em></strong> utilizar,
+                en su caso, los mecanismos de obtención controlada de gas que ISBE ponga a disposición de este Nivel
+                de Participación (faucet u otros equivalentes); y <strong><em>(v)</em></strong> recibir
+                comunicaciones administrativas y soporte funcional a través del área privada ISBE y de los canales de
+                HelpDesk habilitados, sin facultarla para operar nodos propios ni para interactuar directamente con
+                la <em>blockchain</em> más allá de los flujos habilitados y supervisados por ISBE. La Entidad
+                Adherente podrá asumir este Nivel de Participación cuando haya <strong><em>(i)</em></strong> suscrito
+                el <strong>Anexo I – Condiciones Específicas del Nivel Básico</strong> y
+                <strong><em>(ii)</em></strong> superado satisfactoriamente el procedimiento interno de admisión
+                general previsto en la
+                <strong>Política ECO1010 – Política de adhesión al, y salida del, ecosistema ISBE</strong> y demás
+                Políticas ISBE aplicables.
+            </p>
+        </li>
+        <li>
+            <p>
+                “<strong>Observador</strong>”: Nivel de Participación orientado a Entidades Adherentes con funciones
+                de supervisión, control, auditoría, investigación o interés institucional, que permite auditar y
+                monitorizar la red ISBE sin capacidad para intervenir operativamente en ella ni emitir transacciones.
+                Este acceso comprende la exploración en modo exclusivamente de lectura del estado de la red ISBE
+                (bloques, transacciones, métricas y estados agregados), así como la utilización de herramientas de
+                observabilidad avanzadas puestas a disposición por la Entidad Gestora (paneles de monitorización,
+                cuadros de mando y registros operativos), que permiten al Observador analizar el comportamiento del
+                sistema, su estabilidad y la evolución temporal de sus principales indicadores, sin facultades de
+                emisión de transacciones ni de modificación del estado de la red y en los términos y con el alcance
+                establecidos en las Políticas ISBE. La Entidad Adherente podrá asumir este Nivel de Participación
+                cuando haya <strong><em>(i)</em></strong> suscrito el
+                <strong>Anexo II — Condiciones Específicas del Nivel Observador</strong> y
+                <strong><em>(ii)</em></strong> superado satisfactoriamente el procedimiento interno de evaluación e
+                idoneidad aplicable a este Nivel de Participación, de conformidad con la
+                <strong>Política ECO1010 – Política de adhesión al, y salida del, ecosistema ISBE</strong> las demás
+                Políticas ISBE.
+            </p>
+        </li>
+        <li>
+            <p>
+                “<strong>Desarrollador</strong>”: Nivel de Participación que habilita a la Entidad Adherente para
+                diseñar, desarrollar, desplegar y mantener Casos de Uso y <em>Smart Contracts</em> sobre las redes de
+                ISBE, previa superación de los procesos de homologación y conformidad técnica y normativa
+                establecidos en las Políticas ISBE. En este Nivel de Participación, la Entidad Adherente podrá,
+                además de las capacidades funcionales asociadas al Nivel Básico en lo que resulten compatibles:
+                <strong><em>(i)</em></strong> desplegar <em>Smart Contracts</em> propios que hayan superado los tests
+                de homologación previstos en la
+                <strong>Política ECO1020 – Política de gestión de casos de uso y SCs</strong>;
+                <strong><em>(ii)</em></strong> utilizar los servicios de infraestructura
+                <em>Blockchain-as-a-Service</em> que ISBE ponga a disposición de los Desarrolladores o que, en su
+                caso, les suministren terceros Operadores de Nodo de Ejecución; y
+                <strong><em>(iii)</em></strong> solicitar la inclusión de sus soluciones en el catálogo de servicios
+                y aplicaciones de ISBE, en los términos y límites que se definan en las Políticas ISBE. El
+                Desarrollador no estará autorizado a operar Nodos de Ejecución propios ni a exponer infraestructura
+                de nodo bajo su control en la red ISBE, salvo que la Entidad Adherente haya asumido adicionalmente el
+                Nivel de Participación de Operador de Nodo de Ejecución. La Entidad Adherente podrá asumir este Nivel
+                de Participación cuando haya: <strong><em>(i)</em></strong> suscrito el
+                <strong>Anexo III — Condiciones Específicas del Nivel Desarrollador</strong> y
+                <strong><em>(ii)</em></strong> superado satisfactoriamente el procedimiento interno de homologación
+                técnica y de conformidad
+                previsto para este Nivel en la
+                <strong>Política ECO1020 – Política de gestión de casos de uso y SCs</strong> y demás Políticas ISBE
+                que resulten aplicables.
+            </p>
+        </li>
+        <li>
+            <p>
+                “<strong>Operador de Nodo de Ejecución</strong>”: Nivel de Participación que habilita a la Entidad
+                Adherente para desplegar, configurar y operar uno o varios Nodos de Ejecución propios de la red ISBE
+                (distintos de los Nodos de Consenso), asumiendo un rol de infraestructura dentro del ecosistema. En
+                este Nivel de Participación, la Entidad Adherente podrá, en los términos que se establezcan en las
+                Políticas ISBE: <strong><em>(i)</em></strong> utilizar sus Nodos de Ejecución como punto de acceso
+                transaccional a la red ISBE para sus propios
+                sistemas y aplicaciones (por ejemplo, mediante endpoints RPC, APIs o conectores específicos);
+                <strong><em>(ii)</em></strong> prestar, cuando así se permita, servicios de conectividad y
+                <em>Blockchain-as-a-Service</em> a terceros autorizados, apoyándose en dichos Nodos de Ejecución;
+                <strong><em>(iii)</em></strong> integrar los Nodos de Ejecución en sus propios sistemas de
+                monitorización, registro de eventos, observabilidad y gestión de incidentes; y
+                <strong><em>(iv)</em></strong> participar en los mecanismos de alta disponibilidad, redundancia y
+                resiliencia que se definan para
+                la capa de ejecución de la red ISBE, sin intervenir en el Protocolo de Consenso. La Entidad Adherente
+                que ostente este Nivel de Participación deberá cumplir los requisitos técnicos, de seguridad,
+                bastionado, disponibilidad, capacidad y soporte que se definan para los Nodos de Ejecución en la
+                <strong>Política INF1040 – Política de gestión de nodos</strong> y en las demás Políticas ISBE,
+                incluyendo, en su caso, la obligación de mantener determinados niveles de servicio (SLAs), conservar
+                registros técnicos y colaborar en auditorías o verificaciones que se lleven a cabo sobre la
+                infraestructura. La Entidad Adherente podrá asumir este Nivel de Participación cuando haya:
+                <strong><em>(i)</em></strong> suscrito el
+                <strong>Anexo IV — Condiciones Específicas del Nivel de Operador de Nodo de Ejecución</strong> y
+                <strong><em>(ii)</em></strong> superado satisfactoriamente el procedimiento interno de homologación
+                técnica y de gestión de nodos aplicable a este Nivel, de conformidad con la
+                <strong>Política INF1040 – Política de gestión de nodos</strong> y las demás Políticas ISBE.
+            </p>
+        </li>
+        <li>
+            <p>
+                “<strong>Operador de Nodo de Consenso</strong>”: Nivel de Participación que habilita a la Entidad
+                Adherente para operar uno o varios Nodos de Consenso y participar activamente en el Protocolo de
+                Consenso de la red ISBE, contribuyendo a la validación de transacciones y a la seguridad e integridad
+                de la infraestructura. En este Nivel de Participación, la Entidad Adherente asume obligaciones
+                reforzadas de independencia, ubicación, seguridad, disponibilidad y cumplimiento de los parámetros
+                del Protocolo de Consenso definidos en las Políticas ISBE. El Nodo de Consenso deberá encontrarse
+                desplegado en una ubicación física identificada, estable y previamente comunicada a la Entidad
+                Gestora, situada en el territorio de algún Estado miembro de la Unión Europea o del Espacio Económico
+                Europeo o en cualquiera de los territorios autorizados en la
+                <strong>Política INF1040 – Política de gestión de nodos</strong>, y cumplir en todo momento las
+                condiciones técnicas, de seguridad, disponibilidad e independencia establecidas en las Políticas
+                ISBE. La Entidad Adherente podrá asumir este Nivel de Participación cuando haya:
+                <strong><em>(i)</em></strong> suscrito el
+                <strong>Anexo V — Condiciones Específicas del Nivel de Operador de Nodo de Consenso</strong>; y
+                <strong><em>(ii)</em></strong> superado satisfactoriamente el procedimiento interno de homologación
+                técnica, de seguridad y de gobernanza previsto para este Nivel, de conformidad con la
+                <strong>Política INF1040 – Política de gestión de nodos</strong> y las demás Políticas ISBE,
+                incluyendo las restricciones de acumulación de roles y segregación de funciones que, en su caso, se
+                prevean para este Nivel de Participación.
+            </p>
+        </li>
+        <li>
+            <p>
+                “<strong>Protocolo de Consenso</strong>”: Conjunto de reglas, algoritmos y parámetros técnicos que
+                determinan cómo se proponen, validan y finalizan los bloques de transacciones en la red ISBE,
+                mediante la intervención exclusiva de Nodos de Consenso operados por entidades que ostenten el Nivel
+                de Participación de Operador de Nodo de Consenso y que hayan sido previamente autorizadas conforme al
+                presente Contrato Marco y a las Políticas ISBE. Incluye, entre otros elementos, los criterios de
+                selección y rotación de Nodos de Consenso, las reglas de quorum y de voto, los umbrales necesarios
+                para la validación de bloques, las condiciones de finalidad de las transacciones y los procedimientos
+                para la gestión de incidencias y fallos en el consenso. La definición, revisión, actualización y, en
+                su caso, sustitución del Protocolo de Consenso constituye una facultad reservada a la Entidad
+                Gestora, de conformidad con las decisiones de los órganos de gobernanza de ISBE y con las Políticas
+                ISBE, y se llevará a cabo exclusivamente mediante las correspondientes modificaciones de software,
+                configuraciones de red y/o contratos inteligentes de gobernanza. Ningún Participante podrá alterar o
+                intentar alterar unilateralmente el Protocolo de Consenso, ni promover bifurcaciones
+                (“<em>forks</em>”) o modificaciones no autorizadas del mismo.
+            </p>
+        </li>
+        <li>
+            <p>
+                “<strong>Nodo de Ejecución</strong>”: Nodo de la red ISBE encargado de procesar transacciones,
+                mantener el estado de la blockchain y proporcionar servicios de lectura y, en su caso, emisión de
+                transacciones, sin intervenir directamente en el Protocolo de Consenso. Podrá ser operado por la
+                Entidad Gestora o por entidades que ostenten el Nivel de Participación de Operador de Nodo de
+                Ejecución, de conformidad con la <strong>Política INF1040 – Política de gestión de nodos</strong> y
+                las demás Políticas ISBE.
+            </p>
+        </li>
+        <li>
+            <p>
+                “<strong>Nodo de Consenso</strong>”: Nodo que forma parte del Protocolo de Consenso de la red ISBE,
+                encargándose de proponer y validar bloques de transacciones. Su operación está sujeta a estrictos
+                requisitos técnicos, de seguridad (bastionado) y de disponibilidad definidos en la
+                <strong>Política INF1040 – Política de gestión de nodos</strong>.
+            </p>
+        </li>
+        <li>
+            <p>
+                “<strong>Caso de Uso</strong>”: Solución tecnológica (aplicación, servicio o proceso de negocio) que
+                utiliza la infraestructura de ISBE para ejecutar lógica de negocio, registrar operaciones y/o anclar
+                evidencias, normalmente mediante uno o varios Smart Contracts desplegados en las redes de ISBE
+                distintas de la red base. Cada Caso de Uso debe ser previamente autorizado y homologado conforme a la
+                <strong>Política ECO1020 – Política de gestión de casos de uso y SCs</strong>, y puede, a solicitud
+                de la Entidad Adherente que ostente el Nivel de Participación de Desarrollador u Operador de Nodo de
+                Ejecución, ser incluido en el catálogo de servicios de ISBE una vez desplegado.
+            </p>
+        </li>
+        <li>
+            <p>
+                “<strong>Smart Contract</strong>” (Contrato Inteligente): Programa o conjunto de códigos desplegados
+                en la red ISBE que ejecuta automáticamente condiciones predefinidas. Su despliegue en la red ISBE
+                exige superar un test de conformidad técnica y de ciberseguridad realizado por la Entidad Gestora, y
+                debe realizarse mediante los contratos fábrica autorizados para garantizar trazabilidad y
+                cumplimiento de la arquitectura homologada (los “<strong>Contratos Fábrica</strong>”).
+            </p>
+        </li>
+        <li>
+            <p>
+                “<strong>Caso de Uso DORA</strong>”: Aquel Caso de Uso desplegado o a desplegar sobre la red ISBE
+                que: <strong><em>(i)</em></strong> forma parte de los servicios TIC utilizados por una o varias
+                entidades financieras incluidas en el ámbito subjetivo del Reglamento (UE) 2022/2554
+                (“<strong>Reglamento DORA</strong>”) para la prestación de sus servicios regulados; o
+                <strong><em>(ii)</em></strong> es utilizado por
+                la Entidad Adherente en el marco de un contrato con una entidad financiera sujeta al Reglamento DORA
+                en el que se le exija contractualmente garantizar determinados requisitos de resiliencia operativa
+                digital sobre la infraestructura utilizada, incluyendo ISBE.
+            </p>
+        </li>
+        <li>
+            <p>
+                “<strong>Adenda DORA</strong>”: Documento contractual complementario al Contrato Marco que incorpora
+                las cláusulas específicas exigidas por el Reglamento DORA y/o por las entidades financieras sujetas
+                al mismo, en relación con los Servicios TIC descritos en la propia Adenda (y su anexo de servicios),
+                los cuales podrán corresponderse con uno o varios Casos de Uso desplegados sobre la red ISBE. En la
+                Adenda DORA se identificarán los Casos de Uso DORA cubiertos, el rol de la Entidad Adherente en
+                dichos Casos de Uso DORA y el alcance de los compromisos adicionales asumidos por la Entidad Gestora
+                a los solos efectos de facilitar el cumplimiento del Reglamento DORA por parte de las entidades
+                financieras afectadas y/o de la propia Entidad Adherente.
+            </p>
+        </li>
+        <li>
+            <p>
+                “<strong>Entidad DORA</strong>”: Cualquier entidad incluida en el ámbito subjetivo de aplicación del
+                Reglamento DORA, ya sea la propia Entidad Adherente o un cliente de esta respecto del cual se
+                despliegue un Caso de Uso DORA sobre la red ISBE.
+            </p>
+        </li>
+    </ul>
+    <h3 id="tercera.-condiciones-generales-de-adhesión-y-participación">
+        <a href="#tercera.-condiciones-generales-de-adhesión-y-participación">TERCERA.— CONDICIONES GENERALES DE
+            ADHESIÓN Y PARTICIPACIÓN</a>
+    </h3>
+    <p>
+        Las siguientes condiciones generales resultan aplicables a la Entidad Adherente mientras mantenga vigente
+        el presente Contrato Marco y tenga suscrito, al menos, un Anexo de Rol relativo a un Nivel de
+        Participación, con independencia del concreto Nivel o Niveles de Participación que, en cada momento, tenga
+        asumidos, y sin perjuicio de lo que, adicionalmente, se establezca en los Anexos de Rol correspondientes.
+    </p>
+    <ol type="1">
+        <li>
+            <p><strong>Admisión y requisitos generales:</strong></p>
+            <ol type="1">
+                <li>
+                    <p>
+                        Al suscribir el presente Contrato Marco y, de forma simultánea, al menos un Anexo de Rol
+                        relativo a un Nivel de Participación, la Entidad Adherente pasa a integrarse en la red ISBE en
+                        los términos previstos en este Contrato Marco y en dicho/s anexo/s.
+                    </p>
+                </li>
+                <li>
+                    <p>
+                        La Entidad Adherente declara y garantiza que, en el momento de su adhesión y durante toda la
+                        vigencia del presente Contrato Marco, cumple los requisitos de admisibilidad que, con carácter
+                        general o específico para cada Nivel de Participación, establezcan este Contrato Marco y las
+                        Políticas ISBE, incluyendo, al menos: <strong><em>(i)</em></strong> su válida constitución y
+                        capacidad jurídica; <strong><em>(ii)</em></strong> el ejercicio de actividades lícitas; y
+                        <strong><em>(iii)</em></strong> la superación de los procesos de verificación
+                        <em>Know Your Business</em> (KYB)<a href="#fn1" class="footnote-ref" id="fnref1"
+                            role="doc-noteref"><sup>1</sup></a>
+                        y demás comprobaciones que, de forma razonable y proporcionada, resulten exigibles conforme a
+                        la normativa aplicable y a las Políticas ISBE vigentes en cada momento.
+                    </p>
+                </li>
+                <li>
+                    <p>
+                        La Entidad Gestora podrá verificar en cualquier momento el mantenimiento de estos requisitos,
+                        pudiendo requerir a tal efecto la aportación de documentación actualizada, de conformidad con
+                        lo establecido en las Políticas ISBE.
+                    </p>
+                </li>
+            </ol>
+        </li>
+        <li>
+            <p><strong>Cumplimiento normativo y de Políticas ISBE</strong></p>
+            <p>
+                La Entidad Adherente se compromete a respetar en todo momento la normativa que le resulte aplicable,
+                los Estatutos de la red ISBE (si existieren) y todas las Políticas ISBE que, según la información
+                publicada por la Entidad Gestora en el portal ISBE y lo previsto en los Anexos de Rol que tenga
+                suscritos, resulten aplicables a su situación en cada momento.
+            </p>
+            <p>
+                En particular, la Entidad Adherente vendrá obligada a cumplir: <strong><em>(i)</em></strong> las
+                Políticas ISBE identificadas por la Entidad Gestora como aplicables con carácter general a toda
+                Entidad Adherente con Contrato Marco vigente; y <strong><em>(ii)</em></strong> respecto de cada Nivel
+                de Participación que haya asumido, las Políticas ISBE cuyo ámbito de aplicación incluya dicho Nivel
+                de Participación.
+            </p>
+            <p>
+                El régimen de aprobación, modificación y actualización de las Políticas ISBE será el previsto en la
+                cláusula Séptima del presente Contrato Marco, que la Entidad Adherente declara conocer y aceptar. El
+                incumplimiento relevante o reiterado de las Políticas ISBE, o de las obligaciones generales derivadas
+                del presente Contrato Marco, podrá dar lugar a las medidas previstas en la
+                <strong>Política ECO1010 – Política de adhesión al, y salida del, ecosistema ISBE</strong>,
+                incluyendo, en su caso, la suspensión de servicios, la revocación de uno o varios Niveles de
+                Participación o la baja forzosa de la Entidad Adherente.
+            </p>
+        </li>
+        <li>
+            <p><strong>Acceso, credenciales y comunicaciones</strong></p>
+            <ol type="1">
+                <li>
+                    <p>
+                        La Entidad Gestora proporcionará a la Entidad Adherente las credenciales de acceso<a href="#fn2"
+                            class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a>
+                        necesarias para acceder al portal de ISBE y a las interfaces que se habiliten para la gestión
+                        de su participación en la red.
+                    </p>
+                </li>
+                <li>
+                    <p>
+                        A efectos de comunicaciones contractuales y operativas, los canales habilitados por la Entidad
+                        Gestora serán, al menos, los siguientes: <strong><em>(i)</em></strong> el Área Privada de ISBE,
+                        como canal principal y contractualmente vinculante de comunicación interna, a través del cual
+                        se distribuirán las notificaciones oficiales, las comunicaciones operativas críticas
+                        (incluyendo cambios y alertas) y se dará acceso al centro documental privado y a herramientas
+                        de soporte como el Help Desk; <strong><em>(ii)</em></strong> el correo electrónico oficial
+                        designado por la Entidad Adherente, que se utilizará como canal secundario o de refuerzo para
+                        comunicaciones informativas, convocatorias o avisos que complementen la información disponible
+                        en el Área Privada; y <strong><em>(iii)</em></strong> una newsletter periódica, de carácter
+                        meramente informativo, que podrá remitirse por correo electrónico a los miembros registrados
+                        del ecosistema.
+                    </p>
+                    <p>
+                        A través de dichos canales, la Entidad Adherente podrá gestionar su relación con la Entidad
+                        Gestora y con la red ISBE, incluyendo, en particular, la tramitación de solicitudes de
+                        adhesión, modificación o renuncia a Niveles de Participación mediante la suscripción,
+                        modificación o resolución de los correspondientes Anexos de Rol, así como la recepción de
+                        notificaciones y comunicaciones relacionadas con la operativa de la red y con las Políticas
+                        ISBE.
+                    </p>
+                </li>
+                <li>
+                    <p>
+                        La Entidad Adherente será responsable de la custodia diligente de sus credenciales y de la
+                        correcta gestión de los usuarios autorizados bajo su ámbito de control, respondiendo frente a
+                        la Entidad Gestora y frente a terceros por el uso que estos hagan de las mismas, salvo prueba
+                        de robo, pérdida o uso indebido debidamente notificados a la Entidad Gestora en los términos
+                        que prevean las Políticas ISBE.
+                    </p>
+                </li>
+            </ol>
+        </li>
+        <li>
+            <p><strong>Contribuciones económicas generales</strong></p>
+            <ol type="1">
+                <li>
+                    <p>
+                        Como contribución a la sostenibilidad de la red, la Entidad Adherente deberá abonar las cuotas
+                        de membresía, tarifas o cánones que el modelo económico de ISBE prevea, tanto con carácter
+                        general como, en su caso, asociados específicamente a los Niveles de Participación que haya
+                        asumido o a los servicios que consuma.
+                    </p>
+                </li>
+                <li>
+                    <p>
+                        Las cuantías, conceptos, periodicidad y condiciones de pago de dichas contribuciones económicas
+                        se determinarán de conformidad con lo previsto en este Contrato Marco, en los Anexos de Rol y
+                        en las Políticas ISBE, y serán comunicadas a la Entidad Adherente con antelación razonable,
+                        aplicándose en todo caso criterios objetivos y no discriminatorios.
+                    </p>
+                </li>
+                <li>
+                    <p>
+                        La Entidad Adherente se compromete a satisfacer puntualmente todas sus obligaciones económicas
+                        conforme a las cantidades y plazos que se le notifiquen. La falta de pago en los términos
+                        previstos en este Contrato Marco y en las Políticas ISBE podrá constituir un incumplimiento
+                        contractual grave y habilitar a la Entidad Gestora para adoptar medidas de suspensión de
+                        servicios, revocación de Niveles de Participación o baja forzosa, sin perjuicio de la
+                        reclamación de las cantidades debidas.
+                    </p>
+                </li>
+            </ol>
+        </li>
+        <li>
+            <p><strong>Responsabilidad general y uso debido de la red</strong></p>
+            <ol type="1">
+                <li>
+                    <p>
+                        La Entidad Adherente es responsable de utilizar la infraestructura ISBE de buena fe, con pleno
+                        respeto a la legalidad vigente, a los derechos de las demás entidades que participen en la red
+                        y a los principios de integridad, seguridad y estabilidad de la infraestructura.
+                    </p>
+                </li>
+                <li>
+                    <p>
+                        En particular, la Entidad Adherente se abstendrá de: <strong><em>(i)</em></strong> utilizar la
+                        red ISBE para actividades ilícitas o contrarias al orden público;
+                        <strong><em>(ii)</em></strong> introducir códigos maliciosos, vulnerabilidades intencionadas o
+                        configuraciones que comprometan la seguridad, disponibilidad o correcto funcionamiento de la
+                        red; y <strong><em>(iii)</em></strong> realizar cualquier actuación que pueda dañar de forma
+                        relevante la reputación de ISBE o de sus Participantes.
+                    </p>
+                </li>
+                <li>
+                    <p>
+                        La Entidad Adherente mantendrá indemne a la Entidad Gestora y al resto de entidades que
+                        participen en la red ISBE frente a cualquier reclamación, sanción, daño o coste que se derive
+                        de sus propias actuaciones u omisiones en la red ISBE o de las de las personas por las que deba
+                        responder, sin perjuicio de las limitaciones de responsabilidad que, en su caso, se establezcan
+                        en este Contrato Marco o en las Políticas ISBE.
+                    </p>
+                </li>
+            </ol>
+        </li>
+    </ol>
+    <aside id="footnotes" class="footnotes footnotes-end-of-section" role="doc-footnote">
+        <hr />
+        <ol>
+            <li id="fn1">
+                <p>
+                    Entendidos estos como procesos de identificación y verificación de la Entidad Adherente, que
+                    incluye, entre otros extremos, la comprobación de su existencia jurídica, datos registrales
+                    básicos, poderes de representación y, en su caso, titularidad real y actividad declarada, todo
+                    ello conforme a la normativa aplicable y a las Políticas ISBE.<a href="#fnref1"
+                        class="footnote-back" role="doc-backlink">↩︎</a>
+                </p>
+            </li>
+            <li id="fn2">
+                <p>
+                    Por ejemplo, usuario y contraseña, certificados digitales o mecanismos equivalentes.<a
+                        href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a>
+                </p>
+            </li>
+        </ol>
+    </aside>
+    <h3 id="cuarta.propiedad-intelectual-e-industrial">
+        <a href="#cuarta.propiedad-intelectual-e-industrial">CUARTA.—PROPIEDAD INTELECTUAL E INDUSTRIAL</a>
+    </h3>
+    <ol type="1">
+        <li>
+            <p>
+                La firma del presente Contrato Marco no implica transferencia alguna de derechos de propiedad
+                intelectual o industrial entre las Partes. Cada Parte conservará en todo momento la titularidad sobre
+                sus activos intangibles preexistentes o desarrollados al margen de la red ISBE.
+            </p>
+        </li>
+        <li>
+            <p>
+                Los derechos de propiedad intelectual e industrial sobre las aplicaciones, <em>Smart Contracts</em>,
+                códigos, documentación técnica y cualesquiera otros desarrollos que la Entidad Adherente cree,
+                despliegue u opere en la red ISBE pertenecerán a la propia Entidad Adherente o a los terceros que
+                correspondan, sin perjuicio del régimen de licencias, autorizaciones, cesiones, limitaciones de uso y
+                demás condiciones establecido en la
+                <strong>Política NOR1070 – Política de propiedad intelectual</strong>, que la Entidad Adherente
+                declara conocer y aceptar.
+            </p>
+        </li>
+        <li>
+            <p>
+                El uso por la Entidad Adherente de la infraestructura tecnológica, elementos de software y demás
+                activos intangibles titularidad de la Entidad Gestora en el ámbito de ISBE quedará sometido al
+                régimen de licencia previsto en la
+                <strong>Política NOR1070 – Política de propiedad intelectual</strong> y en las demás Políticas ISBE
+                que resulten de aplicación, extinguiéndose automáticamente dicha licencia en los supuestos y términos
+                allí previstos.
+            </p>
+        </li>
+    </ol>
+    <h3 id="quinta.-confidencialidad"><a href="#quinta.-confidencialidad">QUINTA.— CONFIDENCIALIDAD</a></h3>
+    <ol type="1">
+        <li>
+            El régimen de confidencialidad aplicable a la información a la que las Partes tengan acceso con ocasión
+            de la firma y vigencia del presente Contrato Marco y/o de cualquiera de los Niveles de Participación que
+            la Entidad Adherente asuma mediante los correspondientes Anexos de Rol se regirá por lo dispuesto en la
+            <strong>Política<br />
+                NOR1050 – Política de confidencialidad</strong>, que la Entidad Adherente declara conocer y aceptar y
+            que se considera incorporada al presente
+            Contrato Marco por remisión.
+        </li>
+    </ol>
+    <h3 id="sexta.-protección-de-datos-personales">
+        <a href="#sexta.-protección-de-datos-personales">SEXTA.— PROTECCIÓN DE DATOS PERSONALES</a>
+    </h3>
+    <ol type="1">
+        <li>
+            <p>
+                Las Partes garantizan el pleno cumplimiento de la normativa vigente en materia de protección de datos
+                personales, en particular del Reglamento (UE) 2016/679 y la legislación española de desarrollo (Ley
+                Orgánica 3/2018, de Protección de Datos Personales y garantía de los derechos digitales, y demás
+                disposiciones aplicables).
+            </p>
+        </li>
+        <li>
+            <p>
+                Sin perjuicio de lo anterior, el régimen detallado aplicable al tratamiento de datos personales en el
+                contexto de la red ISBE —incluyendo, entre otros extremos, la asignación de roles de responsable y
+                encargado del tratamiento, las obligaciones de información, las medidas técnicas y organizativas de
+                seguridad, la gestión de incidentes y brechas de seguridad, el uso de datos personales en registros
+                <em>on-chain</em> y las condiciones para la eventual formalización de acuerdos de encargo de
+                tratamiento— se regirá por lo dispuesto en la Política
+                <strong>NOR1060 – Política de protección de datos personales</strong>, que la Entidad Adherente
+                declara conocer y aceptar y que se considera incorporada al presente Contrato Marco por remisión,
+                obligándose las Partes a cumplirla en todo momento en la medida en que les resulte aplicable.
+            </p>
+        </li>
+    </ol>
+    <h3 id="séptima.-duración-modificación-y-terminación-del-contrato-marco">
+        <a href="#séptima.-duración-modificación-y-terminación-del-contrato-marco">SÉPTIMA.— DURACIÓN, MODIFICACIÓN Y
+            TERMINACIÓN DEL CONTRATO MARCO</a>
+    </h3>
+    <ol type="1">
+        <li>
+            <p><strong>Duración y prórrogas</strong></p>
+            <p>
+                El presente Contrato Marco entra en vigor en la fecha de su firma por ambas Partes y tendrá una
+                duración inicial de <strong>un (1) año</strong> a contar desde dicha fecha, manteniéndose vigente
+                mientras la Entidad Adherente tenga suscrito, al menos, un Anexo de Rol relativo a un Nivel de
+                Participación en la red ISBE.
+            </p>
+            <p>
+                Transcurrido dicho periodo inicial, el Contrato Marco se prorrogará tácitamente por periodos
+                sucesivos de un (1) año, salvo que cualquiera de las Partes comunique por escrito a la otra su
+                voluntad de no prorrogarlo, con un preaviso mínimo de tres (3) meses respecto de la fecha de
+                vencimiento del periodo inicial o de cualquiera de sus prórrogas.
+            </p>
+            <p>
+                Cada Anexo de Rol que se suscriba formará parte integrante del Contrato Marco y su vigencia estará
+                supeditada a la de este, salvo que el correspondiente Anexo de Rol se dé por terminado
+                individualmente conforme a sus propias cláusulas<a href="#fn3" class="footnote-ref" id="fnref3"
+                    role="doc-noteref"><sup>3</sup></a>. La extinción del último Anexo de Rol que la Entidad Adherente
+                mantenga vigente determinará, en
+                todo caso, la resolución automática del presente Contrato Marco en la misma fecha en que aquella
+                produzca efectos.
+            </p>
+        </li>
+        <li>
+            <p><strong>Modificación de las Políticas ISBE y prevalencia sobre el Contrato Marco</strong></p>
+            <p>
+                La Entidad Adherente reconoce y acepta que las Políticas ISBE que desarrollan el presente Contrato
+                Marco, así como cualesquiera otras que figuren en cada momento como vigentes y aplicables según la
+                información publicada por la Entidad Gestora, serán aprobadas y podrán ser modificadas, sustituidas o
+                derogadas de forma unilateral por la Entidad Gestora, en el ejercicio de sus funciones de gobernanza
+                sobre la red ISBE y de conformidad con las reglas de adopción de acuerdos de sus órganos de
+                administración y gobierno vigentes en cada momento.
+            </p>
+            <p>
+                La Entidad Gestora notificará a la Entidad Adherente las modificaciones de las Políticas ISBE (por
+                medio del portal de ISBE u otro canal previsto), indicando la fecha de entrada en vigor y
+                concediendo, en su caso, un plazo razonable para su implementación cuando así resulte necesario.
+            </p>
+            <p>
+                Las modificaciones de las Políticas ISBE serán plenamente aplicables y vinculantes para la Entidad
+                Adherente desde la fecha indicada en la correspondiente notificación y se considerarán desarrollo
+                técnico, organizativo y/o normativo del presente Contrato Marco, entendiéndose este adaptado en lo
+                estrictamente necesario para alinearse con la versión vigente de dichas Políticas ISBE, sin que ello
+                suponga dejar la validez o el cumplimiento del Contrato Marco al arbitrio de la Entidad Gestora en
+                los términos del artículo 1256 del Código Civil. En caso de discrepancia o conflicto entre lo
+                previsto en el presente Contrato Marco y el contenido de las Políticas ISBE vigentes que resulten
+                aplicables a la Entidad Adherente, prevalecerá lo dispuesto en dichas Políticas ISBE en la medida en
+                que regulen aspectos técnicos, organizativos u operativos de la participación en ISBE, entendiéndose
+                el Contrato Marco adaptado automáticamente en lo estrictamente necesario para reflejar dicha
+                prevalencia.
+            </p>
+            <p>
+                Si alguna actualización de las Políticas ISBE implicase una alteración sustancial y objetivamente
+                gravosa de las obligaciones contractuales de la Entidad Adherente, esta podrá manifestar por escrito
+                su desacuerdo y, de persistir la discrepancia, solicitar la baja voluntaria antes de la fecha de
+                entrada en vigor de la modificación correspondiente, considerándose en tal caso resuelto el Contrato
+                Marco sin penalización alguna para la Entidad Adherente y sin obligación de asumir importe distinto
+                de las cantidades devengadas hasta la fecha efectiva de resolución.
+            </p>
+            <p>
+                Fuera de lo previsto en los párrafos anteriores, cualquier otra modificación de las cláusulas de este
+                Contrato Marco o de los Anexos de Rol deberá realizarse por escrito y de común acuerdo entre las
+                Partes.
+            </p>
+        </li>
+        <li>
+            <p><strong>Terminación del Contrato Marco</strong></p>
+            <ol type="1">
+                <li>
+                    <p>
+                        <em><u>Baja voluntaria de la Entidad Adherente</u></em>
+                    </p>
+                    <p>
+                        La Entidad Adherente podrá, en cualquier momento, dar por terminada su participación en la red
+                        ISBE y, por ende, resolver este Contrato Marco, notificándolo por escrito a la Entidad Gestora
+                        con una antelación mínima de quince (15) días naturales, de conformidad con el procedimiento de
+                        baja voluntaria previsto en la
+                        <strong>Política ECO1010 – Política de adhesión al, y salida del, ecosistema ISBE</strong>.
+                    </p>
+                    <p>
+                        Los aspectos técnicos y operativos del proceso de desconexión y
+                        <em>offboarding</em> (incluyendo, en su caso, revocación de accesos, deshabilitación de nodos y
+                        deslistado de servicios o Casos de Uso) se regirán íntegramente por lo dispuesto en la
+                        <strong>Política ECO1010 – Política de adhesión al, y salida del, ecosistema ISBE</strong>.
+                    </p>
+                </li>
+                <li>
+                    <p>
+                        <em><u>Resolución por incumplimiento y baja forzosa</u></em>
+                    </p>
+                    <p>
+                        La Entidad Gestora podrá acordar la resolución del presente Contrato Marco y la baja forzosa de
+                        la Entidad Adherente de la red ISBE en los supuestos y condiciones previstos en la
+                        <strong>Política ECO1010 – Política de adhesión al, y salida del, ecosistema ISBE</strong>,
+                        cuando concurra un incumplimiento grave o reiterado de las obligaciones derivadas del propio
+                        Contrato Marco, de los Anexos de Rol o de las Políticas ISBE que resulten aplicables.
+                    </p>
+                    <p>
+                        El procedimiento, fases, plazos, garantías de audiencia y régimen de decisión aplicables a la
+                        baja forzosa serán los establecidos en la
+                        <strong>Política ECO1010 – Política de adhesión al, y salida del, ecosistema ISBE</strong>. La
+                        baja forzosa por incumplimiento no excluye la posible reclamación de daños y perjuicios si la
+                        actuación de la Entidad Adherente hubiese causado un daño cierto a la Entidad Gestora, a la red
+                        ISBE o a terceros.
+                    </p>
+                </li>
+                <li>
+                    <p>
+                        <em><u>Efectos de la terminación del Contrato Marco</u></em>
+                    </p>
+                    <p>
+                        La terminación de este Contrato Marco, por cualquier causa, no afectará a aquellas
+                        estipulaciones que por su naturaleza deban subsistir, incluyendo, a título enunciativo, las
+                        relativas a confidencialidad, protección de datos personales, propiedad intelectual,
+                        limitaciones de responsabilidad y régimen de resolución de conflictos, así como cualesquiera
+                        otras que así se prevean en este Contrato Marco o en las Políticas ISBE.
+                    </p>
+                    <p>
+                        La Entidad Adherente reconoce que, tras su salida de la red ISBE, no tendrá derecho a reclamar
+                        compensación o indemnización alguna por la pérdida de la condición de Participante ni por la
+                        discontinuación de sus Casos de Uso en la red, sin perjuicio de la eventual devolución de
+                        garantías económicas que, en su caso, se hubieran constituido y no hubieran sido aplicadas a la
+                        cobertura de incumplimientos o deudas pendientes en los términos establecidos en las Políticas
+                        ISBE.
+                    </p>
+                </li>
+            </ol>
+        </li>
+    </ol>
+    <aside id="footnotes-2" class="footnotes footnotes-end-of-section" role="doc-footnote">
+        <hr />
+        <ol start="3">
+            <li id="fn3">
+                <p>
+                    Por ejemplo, renuncia o revocación de un Nivel de Participación específico sin que ello implique
+                    necesariamente la baja total de la Entidad Adherente de la red ISBE.<a href="#fnref3"
+                        class="footnote-back" role="doc-backlink">↩︎</a>
+                </p>
+            </li>
+        </ol>
+    </aside>
+    <h3 id="octava.-régimen-específico-para-casos-de-uso-dora">
+        <a href="#octava.-régimen-específico-para-casos-de-uso-dora">OCTAVA.— RÉGIMEN ESPECÍFICO PARA CASOS DE USO
+            DORA</a>
+    </h3>
+    <ol type="1">
+        <li>
+            <p>
+                Cuando la Entidad Adherente pretenda desplegar o explotar sobre la red ISBE uno o varios Casos de Uso
+                DORA, deberá, con carácter previo al despliegue en producción de dichos Casos de Uso DORA, suscribir
+                con la Entidad Gestora la correspondiente Adenda DORA.
+            </p>
+        </li>
+        <li>
+            <p>
+                La Adenda DORA tendrá naturaleza complementaria respecto del presente Contrato Marco y de las
+                Políticas ISBE. En caso de contradicción entre lo dispuesto en este Contrato Marco o en las Políticas
+                ISBE y lo previsto en una Adenda DORA, prevalecerá esta última exclusivamente en lo relativo a los
+                Casos de Uso DORA expresamente identificados en ella, aplicándose el Contrato Marco y las Políticas
+                ISBE con carácter general en todo lo demás.
+            </p>
+        </li>
+        <li>
+            <p>
+                La Entidad Adherente se compromete a no desplegar ni explotar en producción ningún Caso de Uso DORA
+                sobre la red ISBE mientras no se encuentre en vigor, entre la Entidad Gestora y la Entidad Adherente,
+                una Adenda DORA que cubra expresamente dicho Caso de Uso DORA.
+            </p>
+        </li>
+        <li>
+            <p>
+                La Entidad Adherente notificará sin demora a la Entidad Gestora la concurrencia o posible
+                concurrencia de las circunstancias que determinan la calificación de un Caso de Uso como Caso de Uso
+                DORA, conforme a las definiciones del presente Contrato Marco y de la Adenda DORA, comprometiéndose a
+                suspender o no iniciar la explotación en producción de dicho Caso de Uso DORA hasta que la Adenda
+                DORA correspondiente sea suscrita.
+            </p>
+        </li>
+    </ol>
+    <h3 id="novena.-ley-aplicable-y-resolución-de-conflictos">
+        <a href="#novena.-ley-aplicable-y-resolución-de-conflictos">NOVENA.— LEY APLICABLE Y RESOLUCIÓN DE
+            CONFLICTOS</a>
+    </h3>
+    <ol type="1">
+        <li>
+            <p>
+                El presente Contrato Marco, los Anexos de Rol que lo integran y las Políticas ISBE que lo desarrollan
+                se regirán e interpretarán de acuerdo con la legislación común española.
+            </p>
+        </li>
+        <li>
+            <p>
+                Para la resolución de cualquier conflicto, discrepancia o reclamación derivada de la interpretación o
+                ejecución del presente Contrato Marco, de sus Anexos de Rol o, en lo que proceda, de las Políticas
+                ISBE, las Partes procurarán, con carácter previo, alcanzar una solución amistosa a través de los
+                canales de gobernanza de ISBE.
+            </p>
+            <p>
+                A tal efecto, cualquiera de las Partes podrá notificar a la otra su posición por escrito, iniciándose
+                un periodo de <strong>negociación directa</strong> de treinta (30) días naturales desde la recepción
+                de dicha notificación. Durante este periodo, se celebrará al menos una reunión —presencial o
+                telemática— convocada por la Entidad Gestora, debiendo las Partes realizar esfuerzos razonables para
+                alcanzar un acuerdo.
+            </p>
+            <p>
+                La solución amistosa podrá apoyarse opcionalmente en mecanismos de mediación voluntaria gestionados
+                por la Entidad Gestora o por un tercero independiente.
+            </p>
+            <p>
+                Si, transcurrido dicho plazo, no se hubiera alcanzado un acuerdo que ponga fin al conflicto, cada
+                interviniente, con renuncia expresa al fuero que pudiera corresponderle, se somete a la jurisdicción
+                de los Juzgados y Tribunales de Madrid (o de aquella localidad donde la Entidad Gestora tenga su
+                domicilio social, si fuese distinta), que serán competentes para conocer del asunto.
+            </p>
+            <p>
+                Si por imperativo legal la Entidad Adherente ostentara la condición de Administración Pública y no
+                pudiera someterse a jurisdicción civil ordinaria, las partes acuerdan que cualquier controversia se
+                solventará conforme a lo previsto en la legislación de contratos del sector público o
+                contencioso-administrativa, según corresponda.
+            </p>
+        </li>
+    </ol>
+
+</details>
+
+
+                <div class="ui positive message">
+                    <div class="ui large checkbox">
+                        <input type="checkbox" disabled >
+                        <label>Acepto las estipulaciones del contrato marco</label>
+                        <input type="hidden" name="contract_base" value="">
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="ui raised segment" style="border-radius:1rem">
+
+            <h1><strong>ANEXOS DEL CONTRATO MARCO</strong></h1>
+
+            <p>En Madrid, a 9 de 4 de 2026</p>
+
+            
+
+            
+
+            <div class="ui divider"></div>
+
+        </div>
+
+        <div class="ui raised segment" style="border-radius:1rem">
+
+            <h2><strong>ACEPTACIÓN Y FIRMA</strong></h2>
+
+            <div class="ui segment">
+                <p>Aceptar y firmar el contrato</p>
+                <div class="ui two spaced buttons">
+                    <button id="generate-button" class="ui large black circular button">
+                        <i class="check icon"></i> Aceptar y firmar
+                    </button>
+                    <a id="back-button" href="" class="ui large circular button">
+                        <i class="arrow left icon"></i> Volver atrás
+                    </a>
+                </div>
+            </div>
+
+        </div>
+        
+
+
+    </div>
+
+</body>
+
+</html>

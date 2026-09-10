@@ -1,0 +1,16 @@
+.idea
+*.iml
+.cover
+*.log
+*.exe
+cover.out
+vendor/
+*.db
+misc/
+
+# Data directory with databases and logs
+data/
+secrets/
+# Added by goreleaser init:
+dist/
+wip/

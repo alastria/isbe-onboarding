@@ -1,0 +1,359 @@
+{{define "contract_download"}}
+
+<!DOCTYPE html>
+<html>
+
+<head>
+    <!-- Standard Meta -->
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>ISBE Onboarding</title>
+    <link rel="stylesheet" href="/static/semantic.css">
+
+    <script src="/static/semantic.js"></script>
+
+</head>
+
+<body style="background-image: url('/static/images/isbe_background.png')">
+
+
+    <style>
+        .contract-input {
+            border: none;
+            border-bottom: 1px solid #555;
+            background-color: #f4f7fa;
+            padding: 4px 6px;
+            margin: 0 2px;
+            font-family: inherit;
+            font-size: 0.95em;
+            color: #222;
+            border-radius: 2px;
+            transition: all 0.2s ease;
+        }
+
+        .contract-input:focus {
+            outline: none;
+            border-bottom: 2px solid #2185d0;
+            background-color: #e0e7ff;
+        }
+
+        select.contract-input {
+            padding-right: 20px;
+            cursor: pointer;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        summary {
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .contract-text li {
+            font-size: 1.2rem;
+            line-height: 1.4285em;
+        }
+
+        p {
+            font-size: 1.2rem;
+        }
+
+        p:last-child,
+        p:first-child {
+            margin-bottom: 1rem;
+        }
+
+        input:invalid {
+            border: 1px dashed red;
+        }
+
+        input:valid {
+            border: 1px solid black;
+        }
+    </style>
+
+    <div class="ui hidden divider"></div>
+
+    <div class="ui container">
+
+        <div class="ui raised segment" style="border-radius:1rem">
+
+            <div class="ui five ordered stackable steps">
+                <div class="completed step">
+                    <div class="content">
+                        <div class="title">Certificado</div>
+                        <div class="description">Seleccionar certificado</div>
+                    </div>
+                </div>
+                <div class="completed step">
+                    <div class="content">
+                        <div class="title">Email</div>
+                        <div class="description">Proporcionar email</div>
+                    </div>
+                </div>
+                <div class="completed step">
+                    <div class="content">
+                        <div class="title">Verificar Email</div>
+                        <div class="description">Introducir código</div>
+                    </div>
+                </div>
+                <div class="completed step">
+                    <div class="content">
+                        <div class="title">Contrato</div>
+                        <div class="description">Completar datos</div>
+                    </div>
+                </div>
+                <div class="active step">
+                    <div class="content">
+                        <div class="title">Completado</div>
+                        <div class="description">Revisar y aceptar contrato</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+
+        {{with .formData}}
+
+        <div class="ui raised segment" style="border-radius:1rem">
+
+            <h1 id="contrato-marco-de-adhesión-a-la-red-isbe"><strong>CONTRATO MARCO DE ADHESIÓN A LA RED
+                    ISBE</strong>
+            </h1>
+
+            <p>En Madrid, a {{ .TodayDay }} de {{ .TodayMonth }} de {{ .TodayYear }}</p>
+
+            <h2 class="text-center"><strong>REUNIDOS</strong></h2>
+
+            <!-- IDENTIFICACION ALASTRIA -->
+            <p>De una parte, Asociación Consorcio Red Alastria, con domicilio social en
+                C/ Alberto Aguilera, 23 (Universidad Pontificia de Comillas-ICADE), 28015-Madrid
+                (España), y con N.I.F. número G87936159, inscrita en la Sección Primera del Registro
+                Nacional de Asociaciones con el número 616096, y teléfono +34 683 49 37 48
+                (en adelante “Alastria” o la “Asociación”).
+            </p>
+
+            <!-- IDENTIFICACION PARTICIPANTE -->
+            <p>Y de otra parte, {{ .OrganizationName }},
+                persona jurídica constituida conforme a las leyes de
+                {{ .OrganizationCountry }},
+                con domicilio social en
+                {{ .OrganizationAddress }}
+                y N.I.F. número
+                {{ .OrganizationNif }},
+                inscrita en el Registro Mercantil de
+                {{ .RegistryName }}
+                al tomo
+                {{ .RegistryVolume }}, folio
+                {{ .RegistryFolio }}, hoja
+                {{ .RegistrySheet }},
+                representada en este acto por
+                {{ .RepresentativeTitle }}
+                {{ .RepresentativeName }},
+                con correo electrónico
+                {{ .RepresentativeEmail }},
+                según acredita mediante escritura otorgada ante el Notario de
+                {{ .NotaryCity }},
+                {{ .NotaryTitle }} {{ .NotaryName }}, el {{ .NotaryDay }} de
+                {{ .NotaryMonth }},
+                {{ .NotaryYear }}, con el número
+                {{ .NotaryProtocolNumber }} de su protocolo
+                (en adelante, el “<strong>Participante</strong>”).
+            </p>
+
+            <p>Ambas partes, en adelante denominadas conjuntamente como “<strong>las Partes</strong>”,
+                reconocen tener la capacidad jurídica y de obrar necesaria y suficiente para
+                contratar y obligarse en la representación que ostentan, en especial para
+                formalizar el presente Contrato Marco de Adhesión a la red ISBE. Reconociéndose
+                mutuamente tal capacidad, los comparecientes,
+            </p>
+
+            <!-- EXPOSICION DE LOS MOTIVOS DEL CONTRATO -->
+
+            <h2 class="text-center"><strong>EXPONEN</strong></h2>
+
+            <ol type="I">
+                <li>
+                    <p>Que ISBE es una infraestructura de blockchain
+                        público-permisionada de ámbito nacional, cuya gobernanza explícita y
+                        sistema de niveles de participación garantizan un equilibrio entre la
+                        apertura del ecosistema y los requisitos de seguridad, resiliencia y
+                        cumplimiento jurídico.</p>
+                </li>
+                <li>
+                    <p>Que la red ISBE opera bajo un modelo público-permisionado, lo que
+                        significa que, si bien se trata de una infraestructura abierta y
+                        colaborativa, el acceso a ciertas funcionalidades está restringido a
+                        participantes autorizados según su nivel de participación (el
+                        “<strong>Nivel de Participación</strong>”). El ecosistema se estructura
+                        en los siguientes Niveles de Participación :</p>
+
+                    <ol type="a">
+                        <li>
+                            <p>Nivel 0: Participante Básico.</p>
+                        </li>
+                        <li>
+                            <p>Nivel 1: Observador.</p>
+                        </li>
+                        <li>
+                            <p>Nivel 2: Proveedor de Servicios.</p>
+                        </li>
+                        <li>
+                            <p>Nivel 3: Validador.</p>
+                        </li>
+                    </ol>
+                </li>
+                <li>
+                    <p>Que cada uno de los referidos Niveles de Participación tiene unas
+                        capacidades operativas y responsabilidades específicas dentro de la red
+                        ISBE, siendo acumulativos y evolutivos, pudiendo el Participante
+                        ostentar simultáneamente más de un Nivel de Participación, de acuerdo
+                        con las funciones que desempeñe en la red y las capacidades operativas y
+                        responsabilidades asociadas a cada Nivel de Participación. Por ejemplo,
+                        un Participante puede actuar simultáneamente como Validador y Proveedor
+                        de Servicios, cumpliendo las obligaciones correspondientes a ambos
+                        Niveles de Participación.</p>
+                </li>
+                <li>
+                    <p>Que la relación jurídica entre el Participante y la Entidad
+                        Gestora (según dicho término queda definido más adelante) se articula a
+                        través de la siguiente estructura contractual:</p>
+
+                    <ul>
+                        <li>
+                            <p>Mediante la suscripción del presente Contrato Marco, el
+                                Participante adquiere la condición de Participante Básico y acepta las
+                                condiciones generales y políticas de ISBE aplicables a todos los
+                                miembros de la red ISBE.</p>
+                        </li>
+                        <li>
+                            <p>Para optar a cualquier otro Nivel de Participación superior
+                                (<em>i.e.</em> Observador, Proveedor de Servicios y/o Validador), el
+                                Participante deberá suscribir el anexo correspondiente a dicho Nivel de
+                                Participación que acompaña el presente Contrato Marco. Cada anexo
+                                detallará las facultades, obligaciones y limitaciones propias de ese
+                                Nivel de Participación, evitando la necesidad de firmar nuevos contratos
+                                independientes en caso de que el Participante quiera modificar su Nivel
+                                de Participación.</p>
+
+                            <p>La adhesión del Participante a un anexo se realizará únicamente una
+                                vez cumplidos los requisitos aplicables al Nivel de Participación
+                                correspondiente y seguirá los procedimientos de solicitud establecidos
+                                por la gobernanza de ISBE.</p>
+
+                        </li>
+                    </ul>
+
+                </li>
+                <li>
+                    <p>Que, habiendo llegado ambas partes a un acuerdo respecto a la
+                        colaboración del Participante en la red ISBE conforme a lo indicado en
+                        los expositivos anteriores, las Partes formalizan el presente
+                        <strong>CONTRATO MARCO DE ADHESIÓN A LA RED ISBE</strong> (el
+                        “<strong>Contrato Marco</strong>”), que se regirá con arreglo y sujeción
+                        a las siguientes,
+                    </p>
+                </li>
+            </ol>
+
+            <!-- ESTIPULACIONES -->
+            <div class="ui blue segment">
+
+                {{template "estipulaciones" .}}
+
+                <div class="ui positive message">
+                    <div class="ui large checkbox">
+                        <input type="checkbox" disabled {{if .ContractCheckBase}}checked{{end}}>
+                        <label>Acepto las estipulaciones del contrato marco</label>
+                        <input type="hidden" name="contract_base" value="{{ .ContractCheckBase }}">
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="ui raised segment" style="border-radius:1rem">
+
+            <h1><strong>ANEXOS DEL CONTRATO MARCO</strong></h1>
+
+            <p>En Madrid, a {{ .TodayDay }} de {{ .TodayMonth }} de {{ .TodayYear }}</p>
+
+            {{if eq .ContractCheckBasic "on"}}
+            <!-- ANEXO I -->
+            <div class="ui blue segment">
+
+                {{template "anexo_1" .}}
+
+                <div class="ui positive message">
+                    <div class="ui large checkbox">
+                        <input type="checkbox" disabled checked>
+                        <label>Acepto los términos y condiciones del Anexo I</label>
+                        <input type="hidden" name="contract_basic" value="on">
+                    </div>
+                </div>
+
+                <p><em>(Las cláusulas generales del Contrato Marco continúan aplicando
+                        en todo lo no modificado expresamente por este Anexo I.)</em></p>
+
+            </div>
+            {{end}}
+
+            {{if eq .ContractCheckDeveloper "on"}}
+            <div class="ui divider"></div>
+
+            <!-- ANEXO II -->
+            <div class="ui blue segment">
+
+                {{template "anexo_2" .}}
+
+                <div class="ui positive message">
+                    <div class="ui large checkbox">
+                        <input type="checkbox" disabled checked>
+                        <label>Acepto los términos y condiciones del Anexo II</label>
+                        <input type="hidden" name="contract_developer" value="on">
+                    </div>
+                </div>
+
+                <p><em>(Las cláusulas generales del Contrato Marco continúan aplicando
+                        en todo lo no modificado expresamente por este Anexo II.)</em></p>
+
+            </div>
+            {{end}}
+
+            <div class="ui divider"></div>
+
+        </div>
+
+        <div class="ui raised segment" style="border-radius:1rem">
+
+            <h2><strong>ACEPTACIÓN Y FIRMA</strong></h2>
+
+            <div class="ui segment">
+                <p>Aceptar y firmar el contrato</p>
+                <div class="ui two spaced buttons">
+                    <button id="generate-button" class="ui large black circular button">
+                        <i class="check icon"></i> Aceptar y firmar
+                    </button>
+                    <a id="back-button" href="" class="ui large circular button">
+                        <i class="arrow left icon"></i> Volver atrás
+                    </a>
+                </div>
+            </div>
+
+        </div>
+        {{end}}
+
+
+    </div>
+
+</body>
+
+</html>
+{{end}}

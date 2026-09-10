@@ -1,0 +1,88 @@
+{{define "inform_user_en"}}
+{{template "preamble" .}}
+{{template "logobar" .}}
+
+<div class="ui hidden divider"></div>
+
+<div class="ui container">
+
+    <div class="ui raised segment" style="border-radius:1rem">
+
+        <div class="ui five ordered stackable steps">
+            <div class="active step">
+                <div class="content">
+                    <div class="title">Certificate</div>
+                    <div class="description">Select certificate</div>
+                </div>
+            </div>
+            <div class="disabled step">
+                <div class="content">
+                    <div class="title">Email</div>
+                    <div class="description">Provide email</div>
+                </div>
+            </div>
+            <div class="disabled step">
+                <div class="content">
+                    <div class="title">Verify Email</div>
+                    <div class="description">Enter code</div>
+                </div>
+            </div>
+            <div class="disabled step">
+                <div class="content">
+                    <div class="title">Contract</div>
+                    <div class="description">Fill out data</div>
+                </div>
+            </div>
+            <div class="disabled step">
+                <div class="content">
+                    <div class="title">Completed</div>
+                    <div class="description">Review and accept contract</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+
+    <div class="ui raised segment" style="border-radius:1rem">
+
+        <h2 class="ui huge header">Login with a representative certificate</h2>
+
+        <div class="ui warning message">
+            <div class="header">
+                NOTE: You will be sent to a secure site where your browser will ask you to select
+                one of the certificates installed in your browser.
+                If you do not have any certificates installed, your browser will show an error indicating this
+                fact.
+            </div>
+        </div>
+
+        <div class="ui basic fitted center aligned segment">
+            <a href="{{ .certsecURL }}/auth?code={{ .authCode }}"
+                class="certificate ui large black submit circular button">Use a certificate</a>
+        </div>
+
+        <div class="ui divider"></div>
+
+        <p>The certificate to use is the same digital certificate with which a legal representative of an
+            organization signs documents on behalf of an organization (e.g., in PDF format) or identifies themselves in
+            the electronic headquarters
+            of the Public Administration to act as a representative of that organization.
+        </p>
+        <p>Digital certificates of natural persons cannot be used.</p>
+
+        <div class="ui divider"></div>
+
+        <p>If you are already registered, you will use your certificate to enter your private area.
+            If not, we will ask for your email, verify it, and register you in the system.
+        </p>
+        <p>
+            If you have recently registered or logged in, we will take you directly to your private area.
+        </p>
+
+    </div>
+
+</div>
+
+{{template "postamble" .}}
+{{end}}

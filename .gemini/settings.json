@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "gotools": {
+      "command": "gopls",
+      "args": [
+        "mcp"
+      ],
+      "trust": true
+    }
+  }
+}

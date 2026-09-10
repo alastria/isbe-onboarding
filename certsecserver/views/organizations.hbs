@@ -1,0 +1,25 @@
+{{define "organizations"}}
+{{template "preamble_monaco" .}}
+
+<h2>CertAuth: Organizations in CSC</h2>
+
+<div id="container"></div>
+
+<!-- Load Monaco Editor from CDN -->
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/loader.js"></script>
+<script>
+    // Configure Monaco's base path for loading worker scripts
+    require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs' } });
+
+    // Load the main Monaco Editor module
+    require(['vs/editor/editor.main'], function () {
+        monaco.editor.create(document.getElementById('container'), {
+            value: {{.File }},
+        language: 'json',
+        automaticLayout: true
+        });
+    });
+</script>
+
+{{template "postamble" .}}
+{{end}}

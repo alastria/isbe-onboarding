@@ -1,0 +1,73 @@
+{{define "error"}}
+
+{{template "preamble"}}
+
+{{template "logobar"}}
+
+<div class="ui hidden divider"></div>
+
+<div class="ui container" style="max-width: 800px;">
+
+    <div class="ui huge header">Ha habido un error</div>
+
+    <div class="ui negative message">
+        <div class="header">Error</div>
+        <p>{{ .message }}</p>
+    </div>
+
+    {{ if .certData }}
+    <div class="ui divider"></div>
+    <div class="ui segment">
+        <h3 class="ui header"><i class="file alternate icon"></i>Información del certificado</h3>
+        
+        {{ if .subject }}
+        <div class="ui list">
+            {{ if .subject.CommonName }}
+            <div class="item"><strong>Nombre común:</strong> {{ .subject.CommonName }}</div>
+            {{ end }}
+            
+            {{ if .subject.Organization }}
+            <div class="item"><strong>Organización:</strong> {{ .subject.Organization }}</div>
+            {{ end }}
+            
+            {{ if .subject.OrganizationalUnit }}
+            <div class="item"><strong>Unidad organizativa:</strong> {{ .subject.OrganizationalUnit }}</div>
+            {{ end }}
+            
+            {{ if .subject.Country }}
+            <div class="item"><strong>País:</strong> {{ .subject.Country }}</div>
+            {{ end }}
+            
+            {{ if .subject.EmailAddress }}
+            <div class="item"><strong>Email:</strong> {{ .subject.EmailAddress }}</div>
+            {{ end }}
+            
+            {{ if .subject.Locality }}
+            <div class="item"><strong>Localidad:</strong> {{ .subject.Locality }}</div>
+            {{ end }}
+            
+            {{ if .subject.Province }}
+            <div class="item"><strong>Provincia:</strong> {{ .subject.Province }}</div>
+            {{ end }}
+            
+            {{ if .subject.SerialNumber }}
+            <div class="item"><strong>Número de serie:</strong> {{ .subject.SerialNumber }}</div>
+            {{ end }}
+            
+            {{ if .subject.OrganizationIdentifier }}
+            <div class="item"><strong>Identificador de organización:</strong> {{ .subject.OrganizationIdentifier }}</div>
+            {{ end }}
+        </div>
+        {{ end }}
+        
+        <div class="ui info message">
+            <p>El certificado proporcionado no ha pasado la validación eIDAS. Por favor, verifica que estés utilizando un certificado válido.</p>
+        </div>
+    </div>
+    {{ end }}
+
+</div>
+
+{{template "postamble"}}
+
+{{end}}

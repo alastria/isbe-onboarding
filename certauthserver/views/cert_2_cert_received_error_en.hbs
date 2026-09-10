@@ -1,0 +1,167 @@
+{{define "cert_received_error_en"}}
+{{template "preamble" .}}
+{{template "logobar" .}}
+
+<div class="ui hidden divider"></div>
+
+<div class="ui container">
+
+    <div class="ui raised segment" style="border-radius:1rem">
+
+        <div class="ui five ordered stackable steps">
+            <div class="completed step">
+                <div class="content">
+                    <div class="title">Certificate</div>
+                    <div class="description">Select certificate</div>
+                </div>
+            </div>
+            <div class="active step">
+                <div class="content">
+                    <div class="title">Email</div>
+                    <div class="description">Provide email</div>
+                </div>
+            </div>
+            <div class="disabled step">
+                <div class="content">
+                    <div class="title">Verify Email</div>
+                    <div class="description">Enter code</div>
+                </div>
+            </div>
+            <div class="disabled step">
+                <div class="content">
+                    <div class="title">Contract</div>
+                    <div class="description">Fill out data</div>
+                </div>
+            </div>
+            <div class="disabled step">
+                <div class="content">
+                    <div class="title">Completed</div>
+                    <div class="description">Review and accept contract</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+
+    <div class="ui raised segment" style="border-radius:1rem">
+
+        <h2 class="ui huge header">Certificate received</h2>
+
+        <div class="ui positive message">
+            <div class="header">
+                We have received your certificate. Now we have to confirm your email
+                to continue with the registration process.
+            </div>
+        </div>
+
+        {{if not .certData.EIDASCertificate}}
+        <div class="ui yellow icon message">
+            <i class="exclamation triangle icon"></i>
+            <div class="content">
+                <div class="header">Note</div>
+                This certificate is not valid according to eIDAS standards. But we will accept it because we are in
+                test or demonstration mode.
+            </div>
+        </div>
+        {{ end }}
+
+        {{ if not .subject.OrganizationIdentifier }}
+        <div class="ui yellow icon message">
+            <i class="exclamation triangle icon"></i>
+            <div class="content">
+                <div class="header">Note</div>
+                This is a personal certificate that does not prove you are the legal representative of an organization.
+                But we will accept it because we are in test or demonstration mode.
+            </div>
+        </div>
+        {{ end }}
+
+        <div class="ui divider"></div>
+
+        <div class="ui teal segment">
+
+            {{ if .subject.OrganizationIdentifier }}
+            <h3 class="ui header"><i class="building icon"></i>Organizational certificate data</h3>
+            {{ else }}
+            <h3 class="ui header"><i class="user icon"></i>Personal certificate data</h3>
+            {{ end }}
+
+            <div class="ui list">
+
+                {{ if .subject.OrganizationIdentifier }}
+                <div class="item"><strong>Organization Identifier:</strong>
+                    {{ .subject.OrganizationIdentifier }}
+                </div>
+                {{ end }}
+
+                {{ if .subject.Organization }}
+                <div class="item"><strong>Organization:</strong> {{ .subject.Organization }}</div>
+                {{ end }}
+
+                {{ if .subject.OrganizationalUnit }}
+                <div class="item"><strong>Organizational Unit:</strong> {{ .subject.OrganizationalUnit }}</div>
+                {{ end }}
+
+                {{ if .subject.Country }}
+                <div class="item"><strong>Country:</strong> {{ .subject.Country }}</div>
+                {{ end }}
+
+                {{ if .subject.CommonName }}
+                <div class="item"><strong>Common Name:</strong> {{ .subject.CommonName }}</div>
+                {{ end }}
+
+                {{ if .subject.SerialNumber }}
+                <div class="item"><strong>Serial Number:</strong> {{ .subject.SerialNumber }}</div>
+                {{ end }}
+
+                {{ if .subject.EmailAddress }}
+                <div class="item"><strong>Email:</strong> {{ .subject.EmailAddress }}</div>
+                {{ end }}
+
+                {{ if .subject.Locality }}
+                <div class="item"><strong>Locality:</strong> {{ .subject.Locality }}</div>
+                {{ end }}
+
+                {{ if .subject.Province }}
+                <div class="item"><strong>Province:</strong> {{ .subject.Province }}</div>
+                {{ end }}
+
+                {{ if .subject.StreetAddress }}
+                <div class="item"><strong>Street:</strong> {{ .subject.StreetAddress }}</div>
+                {{ end }}
+
+                {{ if .subject.PostalCode }}
+                <div class="item"><strong>Postal Code:</strong> {{ .subject.PostalCode }}</div>
+                {{ end }}
+
+            </div>
+        </div>
+
+        <div class="ui divider"></div>
+
+        <div class="ui segment">
+            <h3 class="ui header"><i class="envelope icon"></i>Email</h3>
+            <p>Please enter your email in this field. We will send you a
+                verification code that will allow us to confirm your electronic address.
+            </p>
+
+            <form class="ui form" method="POST" action="{{ .postAction }}">
+                <input type="hidden" name="auth_code" value="{{ .authCode }}">
+                <div class="field">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" placeholder="Enter your email" required
+                        value="{{ .subject.EmailAddress }}">
+                </div>
+                <button type="submit" class="ui large black circular button">
+                    <i class="paper plane icon"></i> Send verification code
+                </button>
+            </form>
+        </div>
+
+    </div>
+
+</div>
+
+{{template "postamble" .}}
+{{end}}

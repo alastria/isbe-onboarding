@@ -1,0 +1,70 @@
+{{template "preamble"}}
+
+{{template "logobar"}}
+
+<div class="ui hidden divider"></div>
+
+<div class="ui container">
+
+   <div class="ui huge header">Bienvenido a ISBE</div>
+   <p>
+      Puedes usar dos métodos para entrar en ISBE. Elige el más adecuado a tus necesidades.
+   </p>
+
+   <div class="ui stackable two column grid">
+      <div class="column">
+         <div class="ui raised segment" style="border-radius:1rem">
+            <h3 class="ui center aligned header">
+               Con un certificado de representación
+            </h3>
+
+            <div class="ui basic fitted center aligned segment">
+               <a href="/cert/login?code={{ .authCode }}" class="certificate ui large black submit circular button">Usar
+                  un certificado</a>
+            </div>
+
+            <div class="ui divider"></div>
+
+            <p>El certificado a usar es el mismo certificado digital con el que un representante legal de una
+               organización firma documentos en nombre de una organización (por ejemplo en formato PDF) o se
+               identifica en las sedes electrónicas
+               de la Adminitración Pública para actuar como representante de esa organización.
+            </p>
+            <p>Los certificados digitales de persona física no se pueden utilizar.</p>
+
+
+         </div>
+      </div>
+      <div class="column">
+         <div class="ui raused segment" style="border-radius:1rem">
+            <h3 class="ui center aligned header">
+               Con una Credencial Verificable
+            </h3>
+
+            <div class="ui basic fitted center aligned segment">
+               <a href="/wallet/login?code={{ .authCode }}"
+                  class="credential ui large black submit circular button">Usar Credencial Verificable</a>
+            </div>
+
+            <div class="ui divider"></div>
+
+            <p>Para este mecanismo de identificación, necesitas que el representante legal de tu organización te
+               genere una Credencial Verificable,
+               declarando que tienes ciertos poderes para actuar en nombre de la empresa.
+            </p>
+            <p>Por supuesto, si eres un
+               representante legal,
+               puedes generarte a tí mismo una Credencial Verificable. Pero para ello tienes que usar primero tu
+               certificado de
+               representación para entrar en el sistema.
+            </p>
+
+
+         </div>
+      </div>
+
+   </div>
+
+</div>
+
+{{template "postamble"}}

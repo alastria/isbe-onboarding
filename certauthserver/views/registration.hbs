@@ -1,0 +1,67 @@
+{{template "preamble"}}
+
+{{template "logobar"}}
+
+<div class="ui hidden divider"></div>
+
+<div class="ui container">
+
+   <div class="ui huge header">Bienvenido a ISBE</div>
+   <p>
+      Puedes usar dos métodos para registrate en ISBE. Elige el más adecuado a tus necesidades.
+   </p>
+
+   <div class="ui stackable two column grid">
+      <div class="column">
+         <div class="ui raised segment">
+            <h3 class="ui center aligned header">
+               Con un certificado de representación
+            </h3>
+
+            <div class="ui basic fitted center aligned segment">
+               <a href="/cert/login?code={{ .authCode }}" class="certificate ui large black submit circular button">Usar
+                  un certificado</a>
+            </div>
+
+            <div class="ui divider"></div>
+
+            <p>El certificado a usar es el mismo certificado digital con el que un representante legal de una
+               organización firma documentos en nombre de una organización (por ejemplo en formato PDF) o se
+               identifica en las sedes electrónicas
+               de la Adminitración Pública para actuar como representante de esa organización.
+            </p>
+            <p>Los certificados digitales de persona física no se pueden utilizar.</p>
+
+
+         </div>
+      </div>
+      <div class="column">
+         <div class="ui raused segment">
+            <h3 class="ui center aligned header">
+               Firmando un documento PDF
+            </h3>
+
+            <div class="ui basic fitted center aligned segment">
+               <a href="" class="credential ui large black submit circular button">Usar documento PDF</a>
+            </div>
+
+            <div class="ui divider"></div>
+
+            <p>Este proceso es más manual y lento que usando directamente un certificado digital, pero está previsto
+               para
+               casos cuando tu no eres el representante legal de tu organización y no
+               tienes el certificado correspondiente.
+            </p>
+            <p>El proceso consiste en la generación de un documento en PDF con los datos de tu empresa,
+               que debe ser firmado por un representante legal de tu organización en algún momento,
+               y después subir ese documento en nustro sistema para completar el proceso de registro.
+            </p>
+
+         </div>
+      </div>
+
+   </div>
+
+</div>
+
+{{template "postamble"}}

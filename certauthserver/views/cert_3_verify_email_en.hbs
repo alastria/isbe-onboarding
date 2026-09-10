@@ -1,0 +1,214 @@
+{{define "verify_email_en"}}
+{{template "preamble" .}}
+{{template "logobar" .}}
+
+<div class="ui hidden divider"></div>
+
+<div class="ui container">
+
+    <div class="ui raised segment" style="border-radius:1rem">
+
+        <div class="ui five ordered stackable steps">
+            <div class="completed step">
+                <div class="content">
+                    <div class="title">Certificate</div>
+                    <div class="description">Select certificate</div>
+                </div>
+            </div>
+            <div class="completed step">
+                <div class="content">
+                    <div class="title">Email</div>
+                    <div class="description">Provide email</div>
+                </div>
+            </div>
+            <div class="active step">
+                <div class="content">
+                    <div class="title">Verify Email</div>
+                    <div class="description">Enter code</div>
+                </div>
+            </div>
+            <div class="disabled step">
+                <div class="content">
+                    <div class="title">Contract</div>
+                    <div class="description">Fill out data</div>
+                </div>
+            </div>
+            <div class="disabled step">
+                <div class="content">
+                    <div class="title">Completed</div>
+                    <div class="description">Review and accept contract</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+
+    <div class="ui raised segment" style="border-radius:1rem">
+
+        <h2 class="ui huge header">Email confirmation</h2>
+
+        <div class="ui positive message">
+            <div class="header">
+                {{ if .emailSendFailed }}
+                Verification code generated
+                {{ else }}
+                We have sent an email with a verification code.
+                {{ end }}
+            </div>
+            {{ if .emailSendFailed }}
+            <p>The email service is not available. The verification code is shown below to continue
+                the
+                process.</p>
+            {{ else }}
+            <p>You must enter this code in the input field at the end of the form to confirm the email
+                and continue with the registration.</p>
+            {{ end }}
+        </div>
+
+        <div class="ui divider"></div>
+
+        <div class="ui teal segment">
+
+            {{ if .subject.OrganizationIdentifier }}
+            <h3 class="ui header"><i class="building icon"></i>Organizational certificate data</h3>
+            {{ else }}
+            <h3 class="ui header"><i class="user icon"></i>Personal certificate data</h3>
+            {{ end }}
+
+            <div class="ui list">
+
+                {{ if .subject.OrganizationIdentifier }}
+                <div class="item"><strong>Organization Identifier:</strong>
+                    {{ .subject.OrganizationIdentifier }}
+                </div>
+                {{ end }}
+
+                {{ if .subject.Organization }}
+                <div class="item"><strong>Organization:</strong> {{ .subject.Organization }}</div>
+                {{ end }}
+
+                {{ if .subject.OrganizationalUnit }}
+                <div class="item"><strong>Organizational Unit:</strong> {{ .subject.OrganizationalUnit }}</div>
+                {{ end }}
+
+                {{ if .subject.Country }}
+                <div class="item"><strong>Country:</strong> {{ .subject.Country }}</div>
+                {{ end }}
+
+                {{ if .subject.CommonName }}
+                <div class="item"><strong>Common Name:</strong> {{ .subject.CommonName }}</div>
+                {{ end }}
+
+                {{ if .subject.SerialNumber }}
+                <div class="item"><strong>Serial Number:</strong> {{ .subject.SerialNumber }}</div>
+                {{ end }}
+
+                {{ if .subject.EmailAddress }}
+                <div class="item"><strong>Email:</strong> {{ .subject.EmailAddress }}</div>
+                {{ end }}
+
+                {{ if .subject.Locality }}
+                <div class="item"><strong>Locality:</strong> {{ .subject.Locality }}</div>
+                {{ end }}
+
+                {{ if .subject.Province }}
+                <div class="item"><strong>Province:</strong> {{ .subject.Province }}</div>
+                {{ end }}
+
+                {{ if .subject.StreetAddress }}
+                <div class="item"><strong>Street:</strong> {{ .subject.StreetAddress }}</div>
+                {{ end }}
+
+                {{ if .subject.PostalCode }}
+                <div class="item"><strong>Postal Code:</strong> {{ .subject.PostalCode }}</div>
+                {{ end }}
+
+            </div>
+        </div>
+
+        {{ if .subject.OrganizationIdentifier }}
+        {{ else }}
+        <div class="ui yellow icon message">
+            <i class="exclamation triangle icon"></i>
+            <div class="content">
+                <div class="header">Attention</div>
+                This is a personal certificate (it does not contain organization information).
+                We accept it only for testing and cannot use it to register an organization.
+            </div>
+        </div>
+        {{ end }}
+
+        <div class="ui divider"></div>
+
+        <div class="ui segment">
+            <h3 class="ui header"><i class="envelope icon"></i>Email verification</h3>
+
+            <div class="ui form">
+                <div class="field">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" value="{{ .email }}" readonly>
+                    <small class="ui text">This is the email you provided in the previous step.</small>
+                </div>
+            </div>
+
+            <div class="ui divider"></div>
+
+            {{ if .isLocalProfile }}
+            <div class="ui warning message">
+                <i class="info circle icon"></i>
+                <div class="content">
+                    {{ if .emailSendFailed }}
+                    <div class="header">Local Mode - Email service unavailable</div>
+                    <p>The email service is not configured or not available. To continue
+                        with
+                        the process in local mode, use the code shown below.</p>
+                    {{ else }}
+                    <div class="header">Local Mode - Verification code</div>
+                    <p>Only in local mode, the verification code is shown below. In production, this code would
+                        only be sent to your email.</p>
+                    {{ end }}
+                    <p><strong>Verification code:</strong> <span class="ui large label"
+                            style="font-family: monospace;">{{ .verificationCode }}</span></p>
+                    <p><em>Please enter this code in the field below to
+                            {{ if .emailSendFailed }}continue{{ else }}simulate{{ end }} the
+                            verification process.</em></p>
+                </div>
+            </div>
+            {{ else if .emailSendFailed }}
+            <div class="ui warning message">
+                <i class="info circle icon"></i>
+                <div class="content">
+                    <div class="header">Local Mode - Email service unavailable</div>
+                    <p>The email service is not configured or not available. To continue
+                        with the process in local mode, use the code shown below.</p>
+
+                    <p><strong>Verification code:</strong> <span class="ui large label"
+                            style="font-family: monospace;">{{ .verificationCode }}</span></p>
+                    <p><em>Please enter this code in the field below to continue the verification process.</em></p>
+                </div>
+            </div>
+            {{ end }}
+
+            <form class="ui form" method="POST" action="{{ .postAction }}">
+                <input type="hidden" name="auth_code" value="{{ .authCode }}">
+                <input type="hidden" name="email" value="{{ .email }}">
+
+                <div class="field">
+                    <label for="verification_code">Verification code</label>
+                    <input type="text" id="verification_code" name="verification_code"
+                        placeholder="Enter the 6 digits of the verification code" maxlength="6" required>
+                </div>
+
+                <button type="submit" class="ui large black circular button">
+                    <i class="check icon"></i> Confirm email
+                </button>
+            </form>
+        </div>
+
+
+    </div>
+</div>
+
+{{template "postamble" .}}
+{{end}}
