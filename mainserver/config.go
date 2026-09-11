@@ -136,7 +136,7 @@ func LoadConfig() (*Config, string, error) {
 
 	// ISBE Development environment
 	var ISBE_DEV_CFG = Config{
-		OnboardURL:   "https://onboard-dev.redisbe.com",
+		OnboardURL:   "https://onboard.dev.redisbe.com",
 		OnboardPort:  "8012",
 		PrivateArea:  "https://poc-front.dev.cloud-w.envs.redisbe.com",
 		TMFServerURL: "https://tmf.dev.portal.redisbe.com",
