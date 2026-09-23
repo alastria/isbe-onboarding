@@ -96,7 +96,7 @@ func LoadConfig() (*Config, string, error) {
 		OnboardURL:   "https://onboard." + localDomain,
 		OnboardPort:  "8012",
 		PrivateArea:  "/",
-		TMFServerURL: "https://tmf.evidenceledger.eu/",
+		TMFServerURL: "https://tmf.portal.redisbe.com/",
 		CertAuthConfig: &certauth.ConfigCertAuth{
 			Profile:       types.PROFILE_LOCAL,
 			CertAuthURL:   "https://certauth." + localDomain,
@@ -136,15 +136,15 @@ func LoadConfig() (*Config, string, error) {
 
 	// ISBE Development environment
 	var ISBE_DEV_CFG = Config{
-		OnboardURL:   "https://onboard-dev.redisbe.com",
+		OnboardURL:   "https://onboard.dev.portal.redisbe.com",
 		OnboardPort:  "8012",
 		PrivateArea:  "https://poc-front.dev.cloud-w.envs.redisbe.com",
 		TMFServerURL: "https://tmf.dev.portal.redisbe.com",
 		CertAuthConfig: &certauth.ConfigCertAuth{
 			Profile:       types.PROFILE_ISBE_DEV,
-			CertAuthURL:   "https://certauth-dev.redisbe.com",
+			CertAuthURL:   "https://certauth.dev.portal.redisbe.com",
 			CertAuthPort:  "8010",
-			CertSecURL:    "https://certsec.evidenceledger.eu",
+			CertSecURL:    "https://certsec.dev.portal.redisbe.com",
 			CertSecPort:   "8011",
 			TSAConfig:     defaultTsaConfig,
 			EmailConfig:   defaultEmailConfig,
@@ -190,8 +190,8 @@ func LoadConfig() (*Config, string, error) {
 			RelyingParty: &models.RelyingParty{
 				Name:        "ISBE Onboarding DEV in OVH",
 				Description: "The ISBE Onboarding Application in DEV in OVH server",
-				ClientID:    "https://onboard-dev.evidenceledger.org",
-				RedirectURL: "https://onboard-dev.evidenceledger.org/callback",
+				ClientID:    "https://onboard.dev.portal.redisbe.com",
+				RedirectURL: "https://onboard.dev.portal.redisbe.com/callback",
 				Scopes:      "openid eidas",
 				TokenExpiry: 3600,
 			},
@@ -201,15 +201,15 @@ func LoadConfig() (*Config, string, error) {
 
 	// ISBE Pre-Production environment
 	var ISBE_PRE_CFG = Config{
-		OnboardURL:   "https://onboard-pre.evidenceledger.eu",
+		OnboardURL:   "https://onboard.pre.portal.redisbe.com",
 		OnboardPort:  "8012",
 		PrivateArea:  "https://pre.portal.redisbe.com/",
-		TMFServerURL: "https://tmf-pre.evidenceledger.eu",
+		TMFServerURL: "https://tmf.pre.portal.redisbe.com",
 		CertAuthConfig: &certauth.ConfigCertAuth{
 			Profile:       types.PROFILE_ISBE_PRE,
 			CertAuthURL:   "https://certauth.pre.portal.redisbe.com",
 			CertAuthPort:  "8010",
-			CertSecURL:    "https://certsec-pre.evidenceledger.eu",
+			CertSecURL:    "https://certsec.pre.portal.redisbe.com",
 			CertSecPort:   "8011",
 			TSAConfig:     defaultTsaConfig,
 			EmailConfig:   defaultEmailConfig,
@@ -245,7 +245,7 @@ func LoadConfig() (*Config, string, error) {
 				Name:        "ISBE Onboarding PRE",
 				Description: "The ISBE Onboarding Application in PRE",
 				ClientID:    "isbeonboard",
-				RedirectURL: "https://onboard-pre.evidenceledger.eu/callback",
+				RedirectURL: "https://onboard.pre.portal.redisbe.com/callback",
 				Scopes:      "openid eidas",
 				TokenExpiry: 3600,
 			},
@@ -255,8 +255,8 @@ func LoadConfig() (*Config, string, error) {
 			RelyingParty: &models.RelyingParty{
 				Name:        "ISBE Onboarding PRE in OVH",
 				Description: "The ISBE Onboarding Application in PRE",
-				ClientID:    "https://onboard-pre.evidenceledger.org",
-				RedirectURL: "https://onboard-pre.evidenceledger.org/callback",
+				ClientID:    "https://onboard.pre.portal.redisbe.com",
+				RedirectURL: "https://onboard.pre.portal.redisbe.com/callback",
 				Scopes:      "openid eidas",
 				TokenExpiry: 3600,
 			},
@@ -274,7 +274,7 @@ func LoadConfig() (*Config, string, error) {
 			Profile:       types.PROFILE_ISBE_PRO,
 			CertAuthURL:   "https://certauth.portal.redisbe.com",
 			CertAuthPort:  "8010",
-			CertSecURL:    "https://certsec-pro.evidenceledger.eu",
+			CertSecURL:    "https://certsec.portal.redisbe.com",
 			CertSecPort:   "8011",
 			TSAConfig:     defaultTsaConfig,
 			EmailConfig:   defaultEmailConfig,
@@ -320,8 +320,8 @@ func LoadConfig() (*Config, string, error) {
 			RelyingParty: &models.RelyingParty{
 				Name:        "ISBE Onboarding PRO in OVH",
 				Description: "The ISBE Onboarding Application in PRO",
-				ClientID:    "https://onboard-pro.evidenceledger.org",
-				RedirectURL: "https://onboard-pro.evidenceledger.org/callback",
+				ClientID:    "https://onboard.portal.redisbe.com",
+				RedirectURL: "https://onboard.portal.redisbe.com/callback",
 				Scopes:      "openid eidas",
 				TokenExpiry: 3600,
 			},
