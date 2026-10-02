@@ -125,7 +125,10 @@ func (d *Database) CreateRegistration(tsaService *tsaservice.TSAService, certifi
 	return nil
 }
 
-func (d *Database) UpdateRegistration(tsaService *tsaservice.TSAService, certificateDER string, formData *models.ContractForm, certUrl string) error {
+// UpdateRegistration generates the contract document for the registration identified by organizationIdentifier
+// (the organization_identifier column, which comes from the certificate) and stores it with its timestamp.
+// It returns an error if no registration was updated.
+func (d *Database) UpdateRegistration(tsaService *tsaservice.TSAService, organizationIdentifier string, certificateDER string, formData *models.ContractForm, certUrl string) error {
 	// For a registration with a contract_document fiels empty, we generate the document and set the field
 
 	// Generate the PDF contract in memory
@@ -167,6 +170,24 @@ func (d *Database) UpdateRegistration(tsaService *tsaservice.TSAService, certifi
 		return err
 	}
 
+	// Update the registration
+	if err := d.setContractDocument(organizationIdentifier, contractFilePath, timestamp); err != nil {
+		// Delete the file, as it does not belong to any registration
+		if err := os.Remove(contractFilePath); err != nil {
+			err = errl.Errorf("removing contract file: %w", err)
+			slog.Error(err.Error())
+		}
+
+		return err
+	}
+
+	return nil
+
+}
+
+// setContractDocument sets the contract document and timestamp of the registration identified by
+// organizationIdentifier. It returns an error if no registration was updated.
+func (d *Database) setContractDocument(organizationIdentifier string, contractFilePath string, timestamp []byte) error {
 	updateQuery := `
 		UPDATE registrations 
 		SET contract_document = ?,
@@ -174,14 +195,20 @@ func (d *Database) UpdateRegistration(tsaService *tsaservice.TSAService, certifi
 		WHERE organization_identifier = ?
 	`
 
-	// Update the registration
-	_, err = d.db.Exec(updateQuery, contractFilePath, timestamp, formData.OrganizationNif)
+	result, err := d.db.Exec(updateQuery, contractFilePath, timestamp, organizationIdentifier)
 	if err != nil {
-		return errl.Errorf("failed to update registration for %s: %w", formData.OrganizationNif, err)
+		return errl.Errorf("failed to update registration for %s: %w", organizationIdentifier, err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return errl.Errorf("failed to get rows affected updating registration for %s: %w", organizationIdentifier, err)
+	}
+	if rowsAffected == 0 {
+		return errl.Errorf("failed to update registration for %s: registration not found", organizationIdentifier)
 	}
 
 	return nil
-
 }
 
 type Registration struct {
