@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/alastria/isbe-onboarding/internal/orgid"
 	"github.com/hesusruiz/utils/errl"
 )
 
@@ -435,12 +436,11 @@ func MyTMFExampleOrganization() (*Organization, error) {
 }
 
 func BuildTMFOrganizationFromRequest(requestData RegistrationRequest, derCertificate string) *Organization_Create {
-	// Acondition the VATID. Make sure that it has the prefix 'VATXX-', where XX is the country code.
-	if !strings.HasPrefix(requestData.VatId, "VAT") {
-		requestData.VatId = "VAT" + strings.ToUpper(requestData.Country) + "-" + requestData.VatId
-	}
+	// Normalise the organization identifier. Values with an ETSI semantic prefix (VATES-, NTRNL-, ...)
+	// are kept as-is, and bare national IDs get the prefix 'VATXX-'.
+	requestData.VatId = orgid.NormalizeOrganizationIdentifier(requestData.VatId, requestData.Country)
 
-	// Create the ELSI identifier from the VATID by prefending 'did:elsi:'
+	// Create the ELSI identifier from the organization identifier by prepending 'did:elsi:'
 	elsiID := "did:elsi:" + requestData.VatId
 
 	org := Organization_Create{}

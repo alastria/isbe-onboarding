@@ -15,6 +15,7 @@ import (
 	"github.com/alastria/isbe-onboarding/internal/errl"
 	"github.com/alastria/isbe-onboarding/internal/jpath"
 	"github.com/alastria/isbe-onboarding/internal/models"
+	"github.com/alastria/isbe-onboarding/internal/orgid"
 	"github.com/alastria/isbe-onboarding/internal/tmfservice"
 	"github.com/alastria/isbe-onboarding/types"
 	"github.com/gofiber/fiber/v2"
@@ -860,10 +861,9 @@ func (s *CertAuthServer) handleContractAccepted(c *fiber.Ctx) error {
 		return errl.Errorf("failed to parse form: %w", err)
 	}
 
-	// Acondition the VATID. Make sure that it has the prefix 'VATXX-', where XX is the country code.
-	if !strings.HasPrefix(formData.OrganizationNif, "VAT") {
-		formData.OrganizationNif = "VAT" + strings.ToUpper(formData.OrganizationCountry) + "-" + formData.OrganizationNif
-	}
+	// Normalise the organization identifier. Values with an ETSI semantic prefix (VATES-, NTRNL-, ...)
+	// are kept as they come in the certificate, and bare national IDs get the prefix 'VATXX-'.
+	formData.OrganizationNif = orgid.NormalizeOrganizationIdentifier(formData.OrganizationNif, formData.OrganizationCountry)
 
 	// Check that we have the email of the representative
 	if formData.RepresentativeEmail == "" {

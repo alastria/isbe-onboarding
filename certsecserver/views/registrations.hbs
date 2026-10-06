@@ -57,7 +57,7 @@
                 <td>
                     {{ if .ContractDocumentName }}
                     <a class="w3-btn w3-blue w3-padding-small w3-round w3-small w3-block" download
-                        href="/admin/contract?orgid={{.ContractForm.OrganizationNif}}">Download</a>
+                        href="/admin/contract?orgid={{.OrganizationIdentifier}}">Download</a>
                     {{ else }}
                     <span class="w3-tag w3-small w3-grey">No contract</span>
                     {{ end }}
