@@ -54,6 +54,12 @@ var tableCreateQueries = []string{
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`,
+	`CREATE TABLE IF NOT EXISTS approved_certificates (
+		certificate_sha256 TEXT PRIMARY KEY,
+		organization_identifier TEXT NOT NULL,
+		comment TEXT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	)`,
 }
 
 // New creates a new database instance
