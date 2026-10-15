@@ -160,7 +160,7 @@ func (s *CertAuthServer) pageRequestEmail(c *fiber.Ctx) error {
 		templateName := "cert_received_error"
 		postAction := sendEmailVerificationEndpoint
 		if isEnglish {
-			templateName = "cert_received_error_n"
+			templateName = "cert_received_error_en"
 			postAction += "/en"
 		}
 		return s.htmlRender.Render(c, templateName, fiber.Map{
@@ -189,7 +189,7 @@ func (s *CertAuthServer) pageRequestEmail(c *fiber.Ctx) error {
 			templateName := "cert_received_error"
 			postAction := sendEmailVerificationEndpoint
 			if isEnglish {
-				templateName = "cert_received_error_n"
+				templateName = "cert_received_error_en"
 				postAction += "/en"
 			}
 			return s.htmlRender.Render(c, templateName, fiber.Map{
