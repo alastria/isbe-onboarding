@@ -48,31 +48,31 @@
 
         <h2 class="ui huge header">Certificate received</h2>
 
-        <div class="ui positive message">
-            <div class="header">
-                We have received your certificate. Now we have to confirm your email
-                to continue with the registration process.
-            </div>
-        </div>
-
-        {{if not .certData.EIDASCertificate}}
-        <div class="ui yellow icon message">
+        {{ if .isPersonal }}
+        <div class="ui red icon message">
             <i class="exclamation triangle icon"></i>
             <div class="content">
                 <div class="header">Note</div>
-                This certificate is not valid according to eIDAS standards. But we will accept it because we are in
-                test or demonstration mode.
+                We do not accept personal certificates. Please use a certificate of a legal representative of an
+                organization.
             </div>
         </div>
         {{ end }}
 
-        {{ if not .subject.OrganizationIdentifier }}
+        {{ if .serviceError }}
+        <div class="ui red icon message">
+            <i class="exclamation triangle icon"></i>
+            <div class="content">
+                <div class="header">Note</div>
+                We had temporary problems validating the certificate. Please try again a bit later.
+            </div>
+        </div>
+        {{ else if .validationError }}
         <div class="ui yellow icon message">
             <i class="exclamation triangle icon"></i>
             <div class="content">
                 <div class="header">Note</div>
-                This is a personal certificate that does not prove you are the legal representative of an organization.
-                But we will accept it because we are in test or demonstration mode.
+                This certificate is not valid according to eIDAS standards, and we cannot accept it.
             </div>
         </div>
         {{ end }}
@@ -136,27 +136,6 @@
                 {{ end }}
 
             </div>
-        </div>
-
-        <div class="ui divider"></div>
-
-        <div class="ui segment">
-            <h3 class="ui header"><i class="envelope icon"></i>Email</h3>
-            <p>Please enter your email in this field. We will send you a
-                verification code that will allow us to confirm your electronic address.
-            </p>
-
-            <form class="ui form" method="POST" action="{{ .postAction }}">
-                <input type="hidden" name="auth_code" value="{{ .authCode }}">
-                <div class="field">
-                    <label for="email">Email</label>
-                    <input type="email" id="email" name="email" placeholder="Enter your email" required
-                        value="{{ .subject.EmailAddress }}">
-                </div>
-                <button type="submit" class="ui large black circular button">
-                    <i class="paper plane icon"></i> Send verification code
-                </button>
-            </form>
         </div>
 
     </div>
