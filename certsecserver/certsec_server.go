@@ -3,6 +3,7 @@ package certsec
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/x509"
 	"embed"
 	"encoding/json"
@@ -517,6 +518,22 @@ func (s *CertSecServer) handleCertificateAuth(c *fiber.Ctx) error {
 	cert, issuer, subject, b64der, err := s.retrieveCertificate(c)
 	if err != nil {
 		return sendBackError(errl.Errorf("retrieving certificate: %w", err))
+	}
+
+	// Certificates without organizationIdentifier can be manually approved to act on behalf of an organization.
+	// In that case we set the approved identifier, so the rest of the flow treats it as an organizational certificate.
+	if subject.OrganizationIdentifier == "" {
+		fingerprint := fmt.Sprintf("%x", sha256.Sum256(cert.Raw))
+		approvedID, err := s.db.GetApprovedOrganizationIdentifier(fingerprint)
+		if err != nil {
+			return sendBackError(errl.Errorf("checking approved certificate: %w", err))
+		}
+		if approvedID != "" {
+			slog.Info("Using approved organization identifier", "auth_code", authCode, "certificate_sha256", fingerprint, "organization_identifier", approvedID)
+			subject.OrganizationIdentifier = approvedID
+		} else {
+			slog.Info("Certificate without organization identifier", "auth_code", authCode, "certificate_sha256", fingerprint, "organization", subject.Organization)
+		}
 	}
 
 	// Determine certificate type
