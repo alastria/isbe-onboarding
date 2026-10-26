@@ -649,6 +649,36 @@ func (l *TMFService) TMFDeleteOrganization(accessToken string, id string) error 
 	return nil
 }
 
+// TMFUpsertOrganizationByELSI refreshes the organizations registered under the given tax identifier
+// with the data in org. An existing organization is patched in place, because deleting and recreating
+// it discards everything the organization carries beyond the caller's payload and resets its creation
+// date. When no organization exists yet, one is created.
+func (l *TMFService) TMFUpsertOrganizationByELSI(accessToken string, elsi string, org *Organization_Create) error {
+
+	existingOrgs, err := l.TMFGetOrganizationByELSI(accessToken, elsi)
+	if err != nil {
+		slog.Info("Organization does not exist in TMF server", "vatId", elsi, "reason", err.Error())
+	}
+
+	if len(existingOrgs) == 0 {
+		if _, err := l.TMFCreateOrganization(accessToken, org); err != nil {
+			return errl.Errorf("creating TMF organization: %w", err)
+		}
+		slog.Info("Organization created in TMF server", "vatId", elsi)
+		return nil
+	}
+
+	update := &Organization_Update{Organization_Common: org.Organization_Common}
+	for _, existing := range existingOrgs {
+		if _, err := l.TMFPatchOrganization(accessToken, existing.ID, update); err != nil {
+			return errl.Errorf("updating TMF organization %s: %w", existing.ID, err)
+		}
+		slog.Info("Organization updated in TMF server", "vatId", elsi, "orgId", existing.ID)
+	}
+
+	return nil
+}
+
 func (l *TMFService) TMFDeleteAllOrganizationsByELSI(accessToken string, elsi string) error {
 	// Check in the TMF server if the organization already exists.
 	// In PRO, we reject registration if the organization already exists.
