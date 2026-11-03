@@ -118,3 +118,32 @@ func TestUpsertReportsAFailedPatch(t *testing.T) {
 		t.Error("a rejected patch must surface as an error, got nil")
 	}
 }
+
+func TestUpsertPatchCarriesTheTradingName(t *testing.T) {
+	var patched map[string]any
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch req.Method {
+		case http.MethodGet:
+			json.NewEncoder(w).Encode([]Organization{{ID: "urn:ngsi-ld:organization:did:elsi:VATES-B12345678"}})
+		case http.MethodPatch:
+			if err := json.NewDecoder(req.Body).Decode(&patched); err != nil {
+				t.Errorf("decoding the PATCH body: %v", err)
+			}
+			json.NewEncoder(w).Encode(Organization{ID: "urn:ngsi-ld:organization:did:elsi:VATES-B12345678"})
+		default:
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	}))
+	defer srv.Close()
+
+	svc := &TMFService{BaseURL: srv.URL, client: srv.Client()}
+	if err := svc.TMFUpsertOrganizationByELSI("token", "VATES-B12345678", sampleCreate("Acme Renamed")); err != nil {
+		t.Fatalf("upsert returned an error: %v", err)
+	}
+
+	if got := patched["tradingName"]; got != "Acme Renamed" {
+		t.Errorf("the PATCH must refresh tradingName, got %v", got)
+	}
+}

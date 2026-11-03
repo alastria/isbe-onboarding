@@ -668,7 +668,9 @@ func (l *TMFService) TMFUpsertOrganizationByELSI(accessToken string, elsi string
 		return nil
 	}
 
+	// Organization_Create overrides TradingName, so it has to be copied explicitly into the update.
 	update := &Organization_Update{Organization_Common: org.Organization_Common}
+	update.TradingName = org.TradingName
 	for _, existing := range existingOrgs {
 		if _, err := l.TMFPatchOrganization(accessToken, existing.ID, update); err != nil {
 			return errl.Errorf("updating TMF organization %s: %w", existing.ID, err)
