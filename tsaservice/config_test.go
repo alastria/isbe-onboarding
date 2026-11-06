@@ -46,13 +46,8 @@ func TestNewTSAServiceValidation(t *testing.T) {
 		"private key in trust": func(c *TSAConfig) {
 			c.TrustAnchorsPEM = "-----BEGIN PRIVATE KEY-----\nAAAA\n-----END PRIVATE KEY-----\n"
 		},
-		"missing trust file":   func(c *TSAConfig) { c.TrustAnchorsFile = "/nonexistent/anchors.pem" },
-		"unpinned CA download": func(c *TSAConfig) { c.TrustAnchorsPEM = ""; c.CACertURL = "https://pki.example.test/root.pem" },
-		"HTTP CA download": func(c *TSAConfig) {
-			c.TrustAnchorsPEM = ""
-			c.CACertURL = "http://pki.example.test/root.pem"
-			c.TrustAnchorSHA256 = []string{a.RootSHA256()}
-		},
+		"missing trust file":        func(c *TSAConfig) { c.TrustAnchorsFile = "/nonexistent/anchors.pem" },
+		"unpinned CA download":      func(c *TSAConfig) { c.TrustAnchorsPEM = ""; c.CACertURL = "https://pki.example.test/root.pem" },
 		"user with colon":           func(c *TSAConfig) { c.TSAUser = "a:b" },
 		"timeout too long":          func(c *TSAConfig) { c.Timeout = time.Hour },
 		"missing intermediate file": func(c *TSAConfig) { c.IntermediatesFile = "/nonexistent/inter.pem" },

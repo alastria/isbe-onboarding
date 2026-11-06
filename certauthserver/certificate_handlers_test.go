@@ -1,3 +1,8 @@
+//go:build integration
+
+// TestVerifyCertificate calls the public EU DSS demo service; it is excluded
+// from normal builds: go test -tags integration ./certauthserver/
+
 package certauth
 
 import (
