@@ -28,9 +28,11 @@ CertAuth is a minimalist OpenID Provider (OP) focused on one specific purpose: e
 - **Framework**: Fiber v2.52.0
 
 #### 3. TSAService Integration
-- **Purpose**: Timestamp validation and verification
-- **Function**: Validates timestamps against remote TSA and uses EUDSS for certificate chain verification
-- **External Integration**: Connects to configured TSA URL and EUDSS validation service
+- **Purpose**: RFC 3161 timestamping of the registration evidence (contract PDF + representative certificate)
+- **Function**: Requests a token from the configured TSA (HTTPS, Basic auth, nonce, timeout) and accepts it only after full, fail-closed verification (CMS signature, chain to the trust anchors, EKU, ESS binding, imprint, nonce, policy, freshness, optional CRL)
+- **Trust**: Embedded, versioned DigitelTS root and TSA intermediate (`tsaservice/trust/`), overridable by configuration
+- **Tools**: `cmd/tsatool` verifies stored evidence offline and performs a manual connectivity probe
+- **Details**: [tsaservice/README.md](tsaservice/README.md)
 
 #### 4. Example RP Server (Port 8092)
 - **Domain**: `localhost:8092`
@@ -261,9 +263,16 @@ certauth/
 ├── objective.md                      # Original project requirements
 ├── PROJECT_DOCUMENTATION.md          # This documentation
 ├── x509util/                         # Certificate utilities (existing)
-├── tsaservice/                       # TSA and EUDSS integration service
-│   ├── service.go                    # TSA service implementation
-│   └── asn1.go                       # ASN.1 data structures
+├── tsaservice/                       # TSA client and RFC 3161 verifier (see tsaservice/README.md)
+│   ├── tsaservice.go                 # TSAService, Verifier, HTTP exchange
+│   ├── config.go                     # Configuration, validation, environment variables
+│   ├── parse.go / verify.go          # Strict DER parsing and verification policy
+│   ├── trust.go / trust/             # Trust store (embedded DigitelTS certificates)
+│   ├── revocation.go                 # Optional CRL checking
+│   ├── metrics.go                    # Prometheus metrics
+│   ├── eudss.go                      # EU DSS certificate validation helper
+│   └── tsatest/                      # Fake TSA for tests
+├── cmd/tsatool/                      # TSA diagnostics (verify evidence, probe)
 ├── eudss/                            # EUDSS test data and resources
 ├── internal/
 │   ├── mainserver/                   # Server initialization
