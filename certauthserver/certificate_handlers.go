@@ -235,27 +235,13 @@ func (s *CertAuthServer) pageRequestEmail(c *fiber.Ctx) error {
 
 		createOrg := tmfservice.BuildTMFOrganizationFromRequest(request, certData.CertificateDER)
 
-		// If we are not in Production, delete all existing organizations and create a new one
-		// if s.profile != types.ISBE_PRO {
-		if true {
-			slog.Info("Deleting TMF organizations", "auth_code", authCode, "vat_id", request.VatId)
-			err := s.tmfService.TMFDeleteAllOrganizationsByELSI(s.tmfAdminToken, request.VatId)
-			if err != nil {
-				err = errl.Errorf("deleting TMF organizations: %w", err)
-				slog.Error(err.Error(), "auth_code", authCode)
-			} else {
-				slog.Info("TMF organizations deleted successfully", "auth_code", authCode)
-			}
+		// Refresh the organization in place. Deleting and recreating it discards everything the
+		// organization carries beyond the certificate payload, so an existing one is patched and
+		// only a missing one is created.
+		if err := s.tmfService.TMFUpsertOrganizationByELSI(s.tmfAdminToken, request.VatId, createOrg); err != nil {
+			slog.Error(err.Error(), "auth_code", authCode, "vat_id", request.VatId)
 		} else {
-			slog.Info("TMF organizations not deleted (production mode)", "auth_code", authCode)
-		}
-
-		_, err = s.tmfService.TMFCreateOrganization(s.tmfAdminToken, createOrg)
-		if err != nil {
-			err = errl.Errorf("creating TMF organization: %w", err)
-			slog.Error(err.Error(), "auth_code", authCode)
-		} else {
-			slog.Info("TMF organization created successfully", "auth_code", authCode)
+			slog.Info("TMF organization is up to date", "auth_code", authCode, "vat_id", request.VatId)
 		}
 
 		// Bypass email validation and return directly to caller
