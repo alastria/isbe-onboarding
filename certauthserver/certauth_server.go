@@ -181,10 +181,12 @@ func NewCertAuth(
 		return nil, errl.Errorf("failed to initialize JWT service: %w", err)
 	}
 
-	// Initialize timestamping service
+	// Initialize timestamping service. It validates the configuration and loads the
+	// trust store; the server does not start with an incomplete or unsafe TSA setup.
+	// The URL is not included in the error: an invalid one could carry credentials.
 	tsaService, err := tsaservice.NewTSAService(cfg.TSAConfig)
 	if err != nil {
-		return nil, errl.Errorf("failed to initialize TSA service at: %s, %w", cfg.TSAConfig.TSAURL, err)
+		return nil, errl.Errorf("failed to initialize TSA service: %w", err)
 	}
 
 	// Initialize the email service
