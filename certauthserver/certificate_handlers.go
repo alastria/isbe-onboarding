@@ -17,6 +17,7 @@ import (
 	"github.com/alastria/isbe-onboarding/internal/models"
 	"github.com/alastria/isbe-onboarding/internal/orgid"
 	"github.com/alastria/isbe-onboarding/internal/tmfservice"
+	"github.com/alastria/isbe-onboarding/tsaservice"
 	"github.com/alastria/isbe-onboarding/types"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/utils"
@@ -883,13 +884,16 @@ func (s *CertAuthServer) handleContractAccepted(c *fiber.Ctx) error {
 	}
 
 	// Store the company data in the registrations table
-	if err := s.db.CreateRegistration(s.tsaService, authProcess.CertificateData, storedEmail, &formData, contractDocument); err != nil {
+	// The contract is timestamped (and the token verified) before anything is stored.
+	// The TSA log lines carry the auth code as correlation ID.
+	regCtx := tsaservice.WithCorrelationID(c.UserContext(), authCode)
+	if err := s.db.CreateRegistration(regCtx, s.tsaService, authProcess.CertificateData, storedEmail, &formData, contractDocument); err != nil {
 		err = errl.Errorf("creating registration: %w", err)
 		slog.Error(err.Error(), "auth_code", authCode)
+		// Do not expose internal details (TSA endpoint, verification errors) to the browser.
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": err.Error(),
+			"error": "the registration could not be completed, please try again later",
 		})
-
 	}
 
 	// Register in the TMF server the new Organization
@@ -1060,7 +1064,8 @@ func (s *CertAuthServer) notifyManagement(contractForm *models.ContractForm, fil
 
 	// Set the API key in the header
 	deleteReq.Header.Set("X-Api-Key", s.managementAPIKey)
-	slog.Debug("API key", "X-Api-Key", s.managementAPIKey)
+	// Never log MANAGEMENT_API_KEY.
+	slog.Debug("Management API key configured", "api_key_set", s.managementAPIKey != "")
 
 	deleteClient := &http.Client{}
 	deleteResp, err := deleteClient.Do(deleteReq)

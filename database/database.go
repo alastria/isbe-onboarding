@@ -104,3 +104,18 @@ func (d *Database) Close() error {
 	}
 	return nil
 }
+
+// OpenReadOnly opens an existing database in read-only mode, without creating
+// tables or running migrations. It is meant for diagnostic tools such as
+// cmd/tsatool, which must never modify the stored evidence.
+func OpenReadOnly(path string, profile types.Profile) (*Database, error) {
+	db, err := sql.Open("sqlite3", "file:"+path+"?mode=ro")
+	if err != nil {
+		return nil, errl.Errorf("failed to open database read-only: %w", err)
+	}
+	if err := db.Ping(); err != nil {
+		db.Close()
+		return nil, errl.Errorf("failed to open database read-only: %w", err)
+	}
+	return &Database{db: db, profile: profile}, nil
+}
