@@ -236,9 +236,19 @@ re-timestamp before the TSA certificate expires (G3 TSU: 2029-03-14).
 ## Tests
 
 ```bash
-go test ./tsaservice/... ./database/...          # unit + end-to-end, no network
+go test ./...                                     # default: no network, no credentials
 go test -tags integration ./tsaservice/ -run TestTimestampAndVerify   # REAL TSA, manual only
 ```
 
-The integration tests need real credentials in the environment and consume
-quota; they are excluded from the default build and must not run in CI.
+Every mandatory check of the policy above has a dedicated negative case in
+`TestMandatoryChecksMatrix` (one violation per token, expected rejection
+reason), and `TestLegitimateVariantsAccepted` guards against over-strict
+checks. `TestRealDigitelTSTokenVerifies` uses a genuine provider token.
+
+The default test suite runs offline (verified with `docker run --network none`).
+Tests that reach real services only build with `-tags integration` and read
+credentials from the environment: the TSA (`tsaservice/service_test.go`,
+consumes quota), the EU DSS demo (`tsaservice/service_extra_test.go`,
+`certauthserver/certificate_handlers_test.go`) and email sending
+(`internal/email/email_integration_test.go`, sends real emails). Never run them
+in CI or with production credentials unless that is the purpose of the run.
