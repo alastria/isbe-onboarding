@@ -384,3 +384,100 @@ func FuzzVerify(f *testing.F) {
 		_, _ = v.Verify(tsr, []byte("seed"))
 	})
 }
+
+// TestMandatoryChecksMatrix maps every mandatory check of the verification
+// policy (README "Verification policy") to a token that violates only that
+// check. Each one must be rejected, with the expected reason.
+func TestMandatoryChecksMatrix(t *testing.T) {
+	a := tsatest.New(t)
+	other := tsatest.New(t)
+	otherKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	serverAuth := a.NewTSU(t, tsatest.CertOptions{ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}})
+	extraEKU := a.NewTSU(t, tsatest.CertOptions{ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageTimeStamping, x509.ExtKeyUsageServerAuth}})
+	nonCritical := a.NewTSU(t, tsatest.CertOptions{NonCriticalEKU: true})
+	expired := a.NewTSU(t, tsatest.CertOptions{NotBefore: time.Now().Add(-20 * time.Hour), NotAfter: time.Now().Add(-10 * time.Hour)})
+
+	cases := []struct {
+		name    string
+		opts    tsatest.TokenOptions
+		cfg     func(*TSAConfig)
+		reasons []string
+	}{
+		// Response and CMS structure
+		{"PKIStatus rejection", tsatest.TokenOptions{Status: 2}, nil, []string{ReasonStatus}},
+		{"two SignerInfos", tsatest.TokenOptions{ExtraSigner: true}, nil, []string{ReasonSigner}},
+		{"critical TSTInfo extension", tsatest.TokenOptions{CriticalExtension: true}, nil, []string{ReasonExtension}},
+		// MessageImprint
+		{"imprint of other data", tsatest.TokenOptions{Imprint: make([]byte, 64)}, nil, []string{ReasonImprint}},
+		{"imprint with SHA-1", tsatest.TokenOptions{ImprintOID: oidSHA1, Imprint: make([]byte, 20)}, nil, []string{ReasonAlgorithm}},
+		// Nonce
+		{"nonce missing", tsatest.TokenOptions{OmitNonce: true}, nil, []string{ReasonNonce}},
+		{"nonce different", tsatest.TokenOptions{Nonce: bigOne()}, nil, []string{ReasonNonce}},
+		// Policy OID
+		{"unexpected policy", tsatest.TokenOptions{Policy: tsatest.DefaultPolicy}, func(c *TSAConfig) { c.PolicyOID = "1.3.6.1.4.1.99999.7" }, []string{ReasonPolicy}},
+		// Signed attributes
+		{"no signed attributes", tsatest.TokenOptions{NoSignedAttrs: true}, nil, []string{ReasonSignedAttributes}},
+		{"content-type missing", tsatest.TokenOptions{OmitContentType: true}, nil, []string{ReasonSignedAttributes}},
+		{"content-type is id-data", tsatest.TokenOptions{WrongContentType: true}, nil, []string{ReasonSignedAttributes}},
+		{"message-digest missing", tsatest.TokenOptions{OmitMessageDigest: true}, nil, []string{ReasonSignedAttributes}},
+		{"message-digest duplicated", tsatest.TokenOptions{DuplicateMessageDigest: true}, nil, []string{ReasonMalformed}},
+		{"message-digest tampered", tsatest.TokenOptions{TamperSignedAttrs: true}, nil, []string{ReasonSignedAttributes}},
+		{"CMSAlgorithmProtection mismatch", tsatest.TokenOptions{AlgProtection: true, AlgProtectionMismatch: true}, nil, []string{ReasonSignedAttributes}},
+		// ESS
+		{"ESS missing", tsatest.TokenOptions{OmitESS: true}, nil, []string{ReasonESS}},
+		{"ESS hash of another certificate", tsatest.TokenOptions{WrongESSHash: true}, nil, []string{ReasonESS}},
+		{"ESS v1 hash of another certificate", tsatest.TokenOptions{ESSv1: true, WrongESSHash: true}, nil, []string{ReasonESS}},
+		{"ESS IssuerSerial other serial", tsatest.TokenOptions{WrongESSSerial: true}, nil, []string{ReasonESS}},
+		// Signature
+		{"signature modified", tsatest.TokenOptions{TamperSignature: true}, nil, []string{ReasonSignature}},
+		{"TSTInfo modified, digest updated", tsatest.TokenOptions{TamperTSTInfo: true}, nil, []string{ReasonSignature}},
+		{"signed with another key", tsatest.TokenOptions{Signer: &tsatest.Identity{Cert: a.TSU.Cert, Key: otherKey}}, nil, []string{ReasonSignature}},
+		{"SHA-1 CMS digest", tsatest.TokenOptions{DigestHash: crypto.SHA1}, nil, []string{ReasonAlgorithm}},
+		// Signer identification
+		{"signer certificate absent", tsatest.TokenOptions{OmitCertificates: true}, nil, []string{ReasonSigner}},
+		{"embedded certificate is not the signer", tsatest.TokenOptions{Signer: &other.TSU, EmbeddedCert: a.TSU.Cert}, nil, []string{ReasonSigner}},
+		{"SKI with SignerInfo v1", tsatest.TokenOptions{UseSKI: true, SignerInfoVersion: 1}, nil, []string{ReasonSigner}},
+		{"issuerAndSerial with SignerInfo v3", tsatest.TokenOptions{SignerInfoVersion: 3}, nil, []string{ReasonSigner}},
+		{"tsa name is not the signer", tsatest.TokenOptions{TSAName: a.Root.Cert.RawSubject}, nil, []string{ReasonSigner}},
+		// Chain of trust
+		{"untrusted root", tsatest.TokenOptions{Signer: &other.TSU, IncludeIntermediate: false}, nil, []string{ReasonChain}},
+		{"intermediate missing", tsatest.TokenOptions{}, func(c *TSAConfig) { c.IntermediatesFile = "" }, []string{ReasonChain}},
+		{"expired certificate", tsatest.TokenOptions{Signer: &expired}, nil, []string{ReasonChain}},
+		// EKU
+		{"EKU serverAuth", tsatest.TokenOptions{Signer: &serverAuth}, nil, []string{ReasonChain, ReasonEKU}},
+		{"EKU not exclusive", tsatest.TokenOptions{Signer: &extraEKU}, nil, []string{ReasonEKU}},
+		{"EKU not critical", tsatest.TokenOptions{Signer: &nonCritical}, nil, []string{ReasonEKU}},
+		// Time
+		{"genTime too old", tsatest.TokenOptions{GenTime: time.Now().Add(-time.Hour)}, nil, []string{ReasonTime}},
+		{"genTime in the future", tsatest.TokenOptions{GenTime: time.Now().Add(time.Hour)}, nil, []string{ReasonTime}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tok, err := timestampWith(t, a, tc.opts, tc.cfg)
+			if tok != nil {
+				t.Fatal("a token was returned together with the error")
+			}
+			expectReason(t, err, tc.reasons...)
+		})
+	}
+}
+
+// TestLegitimateVariantsAccepted makes sure the strict checks do not reject
+// valid encodings allowed by the standards.
+func TestLegitimateVariantsAccepted(t *testing.T) {
+	a := tsatest.New(t)
+	cases := map[string]tsatest.TokenOptions{
+		"ESS v1 (SHA-1 certificate identifier)": {ESSv1: true},
+		"signer identified by SKI":              {UseSKI: true},
+		"CMSAlgorithmProtection present":        {AlgProtection: true},
+		"PKIStatus grantedWithMods":             {GrantedWithMods: true},
+		"tsa name equal to signer":              {TSAName: a.TSU.Cert.RawSubject},
+	}
+	for name, o := range cases {
+		t.Run(name, func(t *testing.T) {
+			if _, err := timestampWith(t, a, o, nil); err != nil {
+				t.Fatalf("valid token rejected: %v", err)
+			}
+		})
+	}
+}

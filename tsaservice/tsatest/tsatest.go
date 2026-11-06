@@ -12,6 +12,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -37,6 +38,9 @@ var (
 	oidAttrContentType   = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 3}
 	oidAttrMessageDigest = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 4}
 	oidAttrSigningCertV2 = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 16, 2, 47}
+	oidAttrSigningCert   = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 16, 2, 12}
+	oidAttrAlgProtection = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 52}
+	oidData              = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 7, 1}
 	oidSHA256            = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 2, 1}
 	oidSHA384            = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 2, 2}
 	oidSHA512            = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 2, 3}
@@ -134,12 +138,15 @@ func (a *Authority) NewTSU(t testing.TB, o CertOptions) Identity {
 	if eku == nil {
 		eku = []x509.ExtKeyUsage{x509.ExtKeyUsageTimeStamping}
 	}
+	ski := make([]byte, 20)
+	_, _ = rand.Read(ski)
 	tmpl := &x509.Certificate{
-		Subject:     pkix.Name{CommonName: "Test TSU", Organization: []string{"tsatest"}},
-		KeyUsage:    x509.KeyUsageDigitalSignature,
-		ExtKeyUsage: eku,
-		NotBefore:   o.NotBefore,
-		NotAfter:    o.NotAfter,
+		SubjectKeyId: ski,
+		Subject:      pkix.Name{CommonName: "Test TSU", Organization: []string{"tsatest"}},
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  eku,
+		NotBefore:    o.NotBefore,
+		NotAfter:     o.NotAfter,
 	}
 	if o.CRLURL != "" {
 		tmpl.CRLDistributionPoints = []string{o.CRLURL}
@@ -315,6 +322,31 @@ type TokenOptions struct {
 	CriticalExtension bool
 	// ExtraSigner adds a second SignerInfo.
 	ExtraSigner bool
+
+	// GrantedWithMods returns PKIStatus 1 (grantedWithMods) with a valid token.
+	GrantedWithMods bool
+	// TSAName adds TSTInfo.tsa as a directoryName with this raw DER Name.
+	TSAName []byte
+
+	// Signed attribute variants.
+	OmitContentType        bool
+	WrongContentType       bool
+	OmitMessageDigest      bool
+	DuplicateMessageDigest bool
+	// NoSignedAttrs signs the TSTInfo directly, without signed attributes.
+	NoSignedAttrs bool
+	// ESSv1 uses signing-certificate (ESSCertID, SHA-1) instead of v2.
+	ESSv1 bool
+	// WrongESSSerial puts another serial number in the ESS IssuerSerial.
+	WrongESSSerial bool
+	// AlgProtection adds a CMSAlgorithmProtection attribute; AlgProtectionMismatch makes it wrong.
+	AlgProtection         bool
+	AlgProtectionMismatch bool
+
+	// UseSKI identifies the signer by subjectKeyIdentifier (SignerInfo v3).
+	UseSKI bool
+	// SignerInfoVersion overrides the SignerInfo version.
+	SignerInfoVersion int
 }
 
 // Issue builds a DER TimeStampResp for a request.
@@ -377,14 +409,14 @@ func (a *Authority) Issue(req *Request, o TokenOptions) ([]byte, error) {
 	serial := a.serial
 	a.mu.Unlock()
 
-	tst, err := buildTSTInfo(policy, imprintOID, imprint, serial, genTime, nonce, o.CriticalExtension)
+	tst, err := buildTSTInfo(policy, imprintOID, imprint, serial, genTime, nonce, o.CriticalExtension, o.TSAName)
 	if err != nil {
 		return nil, err
 	}
 
 	encodedTST := tst
 	if o.TamperTSTInfo {
-		encodedTST, err = buildTSTInfo(policy, imprintOID, imprint, serial+1000, genTime, nonce, o.CriticalExtension)
+		encodedTST, err = buildTSTInfo(policy, imprintOID, imprint, serial+1000, genTime, nonce, o.CriticalExtension, o.TSAName)
 		if err != nil {
 			return nil, err
 		}
@@ -414,7 +446,11 @@ func (a *Authority) Issue(req *Request, o TokenOptions) ([]byte, error) {
 	var b cryptobyte.Builder
 	b.AddASN1(cbasn1.SEQUENCE, func(b *cryptobyte.Builder) {
 		b.AddASN1(cbasn1.SEQUENCE, func(b *cryptobyte.Builder) {
-			b.AddASN1Int64(0)
+			if o.GrantedWithMods {
+				b.AddASN1Int64(1)
+			} else {
+				b.AddASN1Int64(0)
+			}
 			b.AddASN1(cbasn1.SEQUENCE, func(b *cryptobyte.Builder) {
 				b.AddASN1(cbasn1.UTF8String, func(b *cryptobyte.Builder) { b.AddBytes([]byte("Operation Okay")) })
 			})
@@ -471,7 +507,7 @@ func addHashAlg(b *cryptobyte.Builder, h crypto.Hash) {
 	})
 }
 
-func buildTSTInfo(policy, imprintOID asn1.ObjectIdentifier, imprint []byte, serial int64, genTime time.Time, nonce *big.Int, criticalExt bool) ([]byte, error) {
+func buildTSTInfo(policy, imprintOID asn1.ObjectIdentifier, imprint []byte, serial int64, genTime time.Time, nonce *big.Int, criticalExt bool, tsaName []byte) ([]byte, error) {
 	var b cryptobyte.Builder
 	b.AddASN1(cbasn1.SEQUENCE, func(b *cryptobyte.Builder) {
 		b.AddASN1Int64(1)
@@ -490,6 +526,11 @@ func buildTSTInfo(policy, imprintOID asn1.ObjectIdentifier, imprint []byte, seri
 		b.AddASN1(cbasn1.SEQUENCE, func(b *cryptobyte.Builder) { b.AddASN1Int64(1) }) // accuracy 1s
 		if nonce != nil {
 			b.AddASN1BigInt(nonce)
+		}
+		if tsaName != nil {
+			b.AddASN1(cbasn1.Tag(0).Constructed().ContextSpecific(), func(b *cryptobyte.Builder) {
+				b.AddASN1(cbasn1.Tag(4).Constructed().ContextSpecific(), func(b *cryptobyte.Builder) { b.AddBytes(tsaName) })
+			})
 		}
 		if criticalExt {
 			b.AddASN1(cbasn1.Tag(1).Constructed().ContextSpecific(), func(b *cryptobyte.Builder) {
@@ -522,73 +563,6 @@ func buildSignerInfo(signer Identity, signedTST, encodedTST []byte, digestHash c
 	}
 	signedDigest, encodedDigest := digestOf(signedTST), digestOf(encodedTST)
 
-	certHash := sha256.Sum256(signer.Cert.Raw)
-	if o.WrongESSHash {
-		certHash[0] ^= 0xff
-	}
-
-	attrs := func(b *cryptobyte.Builder, tstDigest []byte, tampered bool) {
-		b.AddASN1(cbasn1.SEQUENCE, func(b *cryptobyte.Builder) {
-			b.AddASN1ObjectIdentifier(oidAttrContentType)
-			b.AddASN1(cbasn1.SET, func(b *cryptobyte.Builder) { b.AddASN1ObjectIdentifier(oidTSTInfo) })
-		})
-		b.AddASN1(cbasn1.SEQUENCE, func(b *cryptobyte.Builder) {
-			b.AddASN1ObjectIdentifier(oidAttrMessageDigest)
-			d := tstDigest
-			if tampered {
-				d = bytes.Clone(tstDigest)
-				d[0] ^= 0x01
-			}
-			b.AddASN1(cbasn1.SET, func(b *cryptobyte.Builder) { b.AddASN1OctetString(d) })
-		})
-		if !o.OmitESS {
-			b.AddASN1(cbasn1.SEQUENCE, func(b *cryptobyte.Builder) {
-				b.AddASN1ObjectIdentifier(oidAttrSigningCertV2)
-				b.AddASN1(cbasn1.SET, func(b *cryptobyte.Builder) {
-					b.AddASN1(cbasn1.SEQUENCE, func(b *cryptobyte.Builder) { // SigningCertificateV2
-						b.AddASN1(cbasn1.SEQUENCE, func(b *cryptobyte.Builder) { // certs
-							b.AddASN1(cbasn1.SEQUENCE, func(b *cryptobyte.Builder) { // ESSCertIDv2 (sha256 default)
-								b.AddASN1OctetString(certHash[:])
-								b.AddASN1(cbasn1.SEQUENCE, func(b *cryptobyte.Builder) { // IssuerSerial
-									b.AddASN1(cbasn1.SEQUENCE, func(b *cryptobyte.Builder) {
-										b.AddASN1(cbasn1.Tag(4).Constructed().ContextSpecific(), func(b *cryptobyte.Builder) {
-											b.AddBytes(signer.Cert.RawIssuer)
-										})
-									})
-									b.AddASN1BigInt(signer.Cert.SerialNumber)
-								})
-							})
-						})
-					})
-				})
-			})
-		}
-	}
-
-	var sb cryptobyte.Builder
-	sb.AddASN1(cbasn1.SET, func(b *cryptobyte.Builder) { attrs(b, signedDigest, false) })
-	toSign, err := sb.Bytes()
-	if err != nil {
-		return nil, err
-	}
-
-	sh := digestHash.New()
-	sh.Write(toSign)
-	signature, err := signer.Key.Sign(rand.Reader, sh.Sum(nil), digestHash)
-	if err != nil {
-		return nil, err
-	}
-	if o.TamperSignature {
-		signature[len(signature)/2] ^= 0x01
-	}
-
-	var ab cryptobyte.Builder
-	ab.AddASN1(cbasn1.Tag(0).Constructed().ContextSpecific(), func(b *cryptobyte.Builder) { attrs(b, encodedDigest, o.TamperSignedAttrs) })
-	signedAttrs, err := ab.Bytes()
-	if err != nil {
-		return nil, err
-	}
-
 	var sigOID asn1.ObjectIdentifier
 	switch signer.Key.(type) {
 	case *rsa.PrivateKey:
@@ -600,13 +574,147 @@ func buildSignerInfo(signer Identity, signedTST, encodedTST []byte, digestHash c
 		sigOID = oidECDSAWithSHA256
 	}
 
+	var certHash []byte
+	if o.ESSv1 {
+		h := sha1.Sum(signer.Cert.Raw)
+		certHash = h[:]
+	} else {
+		h := sha256.Sum256(signer.Cert.Raw)
+		certHash = h[:]
+	}
+	if o.WrongESSHash {
+		certHash[0] ^= 0xff
+	}
+	essSerial := signer.Cert.SerialNumber
+	if o.WrongESSSerial {
+		essSerial = new(big.Int).Add(essSerial, big.NewInt(1))
+	}
+
+	attrs := func(b *cryptobyte.Builder, tstDigest []byte, tampered bool) {
+		if !o.OmitContentType {
+			b.AddASN1(cbasn1.SEQUENCE, func(b *cryptobyte.Builder) {
+				b.AddASN1ObjectIdentifier(oidAttrContentType)
+				ct := oidTSTInfo
+				if o.WrongContentType {
+					ct = oidData
+				}
+				b.AddASN1(cbasn1.SET, func(b *cryptobyte.Builder) { b.AddASN1ObjectIdentifier(ct) })
+			})
+		}
+		mdAttr := func() {
+			b.AddASN1(cbasn1.SEQUENCE, func(b *cryptobyte.Builder) {
+				b.AddASN1ObjectIdentifier(oidAttrMessageDigest)
+				d := tstDigest
+				if tampered {
+					d = bytes.Clone(tstDigest)
+					d[0] ^= 0x01
+				}
+				b.AddASN1(cbasn1.SET, func(b *cryptobyte.Builder) { b.AddASN1OctetString(d) })
+			})
+		}
+		if !o.OmitMessageDigest {
+			mdAttr()
+			if o.DuplicateMessageDigest {
+				mdAttr()
+			}
+		}
+		if o.AlgProtection {
+			b.AddASN1(cbasn1.SEQUENCE, func(b *cryptobyte.Builder) {
+				b.AddASN1ObjectIdentifier(oidAttrAlgProtection)
+				b.AddASN1(cbasn1.SET, func(b *cryptobyte.Builder) {
+					b.AddASN1(cbasn1.SEQUENCE, func(b *cryptobyte.Builder) {
+						addHashAlg(b, digestHash)
+						b.AddASN1(cbasn1.Tag(1).Constructed().ContextSpecific(), func(b *cryptobyte.Builder) {
+							oid := sigOID
+							if o.AlgProtectionMismatch {
+								oid = oidSHA512WithRSA
+								if sigOID.Equal(oidSHA512WithRSA) {
+									oid = oidECDSAWithSHA256
+								}
+							}
+							b.AddASN1ObjectIdentifier(oid)
+						})
+					})
+				})
+			})
+		}
+		if !o.OmitESS {
+			attrOID := oidAttrSigningCertV2
+			if o.ESSv1 {
+				attrOID = oidAttrSigningCert
+			}
+			b.AddASN1(cbasn1.SEQUENCE, func(b *cryptobyte.Builder) {
+				b.AddASN1ObjectIdentifier(attrOID)
+				b.AddASN1(cbasn1.SET, func(b *cryptobyte.Builder) {
+					b.AddASN1(cbasn1.SEQUENCE, func(b *cryptobyte.Builder) { // SigningCertificate(V2)
+						b.AddASN1(cbasn1.SEQUENCE, func(b *cryptobyte.Builder) { // certs
+							b.AddASN1(cbasn1.SEQUENCE, func(b *cryptobyte.Builder) { // ESSCertID(v2), v2 with default sha256
+								b.AddASN1OctetString(certHash)
+								b.AddASN1(cbasn1.SEQUENCE, func(b *cryptobyte.Builder) { // IssuerSerial
+									b.AddASN1(cbasn1.SEQUENCE, func(b *cryptobyte.Builder) {
+										b.AddASN1(cbasn1.Tag(4).Constructed().ContextSpecific(), func(b *cryptobyte.Builder) {
+											b.AddBytes(signer.Cert.RawIssuer)
+										})
+									})
+									b.AddASN1BigInt(essSerial)
+								})
+							})
+						})
+					})
+				})
+			})
+		}
+	}
+
+	// What is signed: the DER SET of signed attributes, or the TSTInfo itself
+	// when there are no signed attributes.
+	toSign := signedTST
+	if !o.NoSignedAttrs {
+		var sb cryptobyte.Builder
+		sb.AddASN1(cbasn1.SET, func(b *cryptobyte.Builder) { attrs(b, signedDigest, false) })
+		var err error
+		if toSign, err = sb.Bytes(); err != nil {
+			return nil, err
+		}
+	}
+	sh := digestHash.New()
+	sh.Write(toSign)
+	signature, err := signer.Key.Sign(rand.Reader, sh.Sum(nil), digestHash)
+	if err != nil {
+		return nil, err
+	}
+	if o.TamperSignature {
+		signature[len(signature)/2] ^= 0x01
+	}
+
+	var signedAttrs []byte
+	if !o.NoSignedAttrs {
+		var ab cryptobyte.Builder
+		ab.AddASN1(cbasn1.Tag(0).Constructed().ContextSpecific(), func(b *cryptobyte.Builder) { attrs(b, encodedDigest, o.TamperSignedAttrs) })
+		if signedAttrs, err = ab.Bytes(); err != nil {
+			return nil, err
+		}
+	}
+
+	version := int64(1)
+	if o.UseSKI {
+		version = 3
+	}
+	if o.SignerInfoVersion != 0 {
+		version = int64(o.SignerInfoVersion)
+	}
+
 	var b cryptobyte.Builder
 	b.AddASN1(cbasn1.SEQUENCE, func(b *cryptobyte.Builder) {
-		b.AddASN1Int64(1)
-		b.AddASN1(cbasn1.SEQUENCE, func(b *cryptobyte.Builder) {
-			b.AddBytes(signer.Cert.RawIssuer)
-			b.AddASN1BigInt(signer.Cert.SerialNumber)
-		})
+		b.AddASN1Int64(version)
+		if o.UseSKI {
+			b.AddASN1(cbasn1.Tag(0).ContextSpecific(), func(b *cryptobyte.Builder) { b.AddBytes(signer.Cert.SubjectKeyId) })
+		} else {
+			b.AddASN1(cbasn1.SEQUENCE, func(b *cryptobyte.Builder) {
+				b.AddBytes(signer.Cert.RawIssuer)
+				b.AddASN1BigInt(signer.Cert.SerialNumber)
+			})
+		}
 		addHashAlg(b, digestHash)
 		b.AddBytes(signedAttrs)
 		b.AddASN1(cbasn1.SEQUENCE, func(b *cryptobyte.Builder) {
