@@ -122,7 +122,8 @@ func (s *Service) sendPostmarkEmail(toEmail string, subject string, body string)
 		"MessageStream": "outbound",
 	}
 	slog.Debug("Postmark payload", "from", s.fromEmail, "to", toEmail, "subject", subject)
-	slog.Debug("Postmark token", "token", s.smtpPassword)
+	// Never log the Postmark server token (SMTP_PASSWORD).
+	slog.Debug("Postmark token configured", "token_set", s.smtpPassword != "")
 
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {

@@ -1064,7 +1064,8 @@ func (s *CertAuthServer) notifyManagement(contractForm *models.ContractForm, fil
 
 	// Set the API key in the header
 	deleteReq.Header.Set("X-Api-Key", s.managementAPIKey)
-	slog.Debug("API key", "X-Api-Key", s.managementAPIKey)
+	// Never log MANAGEMENT_API_KEY.
+	slog.Debug("Management API key configured", "api_key_set", s.managementAPIKey != "")
 
 	deleteClient := &http.Client{}
 	deleteResp, err := deleteClient.Do(deleteReq)
