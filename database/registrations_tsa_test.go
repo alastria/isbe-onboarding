@@ -22,6 +22,12 @@ import (
 
 func newRegistrationEnv(t *testing.T) (*Database, *tsatest.Server, *tsaservice.TSAService) {
 	t.Helper()
+	return newRegistrationEnvWith(t, nil)
+}
+
+// newRegistrationEnvWith is newRegistrationEnv with a hook to change the TSA configuration.
+func newRegistrationEnvWith(t *testing.T, mutate func(*tsaservice.TSAConfig)) (*Database, *tsatest.Server, *tsaservice.TSAService) {
+	t.Helper()
 	// CreateRegistration writes to the relative path data/contracts.
 	t.Chdir(t.TempDir())
 	if err := os.MkdirAll("data/contracts", 0o755); err != nil {
@@ -33,14 +39,18 @@ func newRegistrationEnv(t *testing.T) (*Database, *tsatest.Server, *tsaservice.T
 	if err := os.WriteFile(inter, []byte(srv.Authority.IntermediatePEM()), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	tsa, err := tsaservice.NewTSAService(&tsaservice.TSAConfig{
+	cfg := tsaservice.TSAConfig{
 		TSAURL:            srv.URL + "/tsa",
 		TSAUser:           tsatest.User,
 		TSAPassword:       tsatest.Password,
 		TrustAnchorsPEM:   srv.Authority.RootPEM(),
 		IntermediatesFile: inter,
 		AllowInsecure:     true,
-	}, tsaservice.WithLogger(slog.New(slog.NewTextHandler(io.Discard, nil))))
+	}
+	if mutate != nil {
+		mutate(&cfg)
+	}
+	tsa, err := tsaservice.NewTSAService(&cfg, tsaservice.WithLogger(slog.New(slog.NewTextHandler(io.Discard, nil))))
 	if err != nil {
 		t.Fatal(err)
 	}
