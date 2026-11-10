@@ -22,7 +22,6 @@ import (
 	"github.com/alastria/isbe-onboarding/internal/tmfservice"
 	"github.com/alastria/isbe-onboarding/tsaservice"
 	"github.com/alastria/isbe-onboarding/types"
-	"github.com/ansrivas/fiberprometheus/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/favicon"
@@ -154,9 +153,9 @@ func NewCertAuth(
 	})
 
 	// Observability
-	prometheus := fiberprometheus.New("certauth")
-	prometheus.RegisterAt(httpServer, "/metrics")
-	httpServer.Use(prometheus.Middleware)
+	if err := setupMetrics(httpServer); err != nil {
+		return nil, errl.Errorf("failed to initialize metrics: %w", err)
+	}
 
 	// Recover middleware recovers from panics anywhere in the stack chain and handles the control to the centralized ErrorHandler
 	httpServer.Use(recover.New())
