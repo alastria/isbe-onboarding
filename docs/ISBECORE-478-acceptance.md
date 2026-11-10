@@ -1,6 +1,6 @@
 # ISBECORE-478 — Estado de los criterios de aceptación
 
-Estado a 10/11/2026, rama `fix/isbecore-478-tsa-hardening` (PR #10), tras corregir las observaciones de la revisión. La petición real a DigitelTS con las credenciales nuevas **no se ha ejecutado todavía**.
+Estado a 10/11/2026, rama `fix/isbecore-478-tsa-hardening` (PR #10), tras corregir las observaciones de la revisión y ejecutar la prueba real contra DigitelTS (preproducción) con las credenciales nuevas.
 
 **Verificado** = demostrado en esta rama con tests o comprobaciones reproducibles.
 **Pendiente** = depende de DigitelTS, de Coolify o de una acción del equipo; no se puede verificar desde el código.
@@ -11,8 +11,14 @@ Estado a 10/11/2026, rama `fix/isbecore-478-tsa-hardening` (PR #10), tras correg
 |----------|--------|--------------------------|
 | `tsaservice/tsaservice.go` no contiene usuario ni contraseña de la TSA como literal | **Verificado** | No queda ningún literal en el árbol de trabajo (`grep`). Arranque sin credenciales → error (`TestConfigureTSA`, `TestNewTSAServiceValidation`, prueba en Docker). Siguen en el **historial** (ver deployment §9). |
 | Tras la rotación, la TSA rechaza las credenciales anteriores | **Pendiente (DigitelTS)** | El 06/11 ~10:04 UTC las credenciales expuestas **seguían aceptándose** (un test preexistente las usó en la línea base). Se comprueba en deployment §5.2, después de desplegar en los tres entornos. |
-| DEV, PRE y PRO, con credenciales nuevas, sellan correctamente un onboarding | **Pendiente (Coolify y prueba real)** | Primero, una única petición real desde local: `TestTimestampAndVerify` (`-tags integration`, mismas comprobaciones que `TestAcceptanceHarnessAgainstMock`). Procedimiento en deployment §4. Del lado del código: el flujo completo está probado contra un TSA local (`TestCreateRegistrationStoresVerifiedEvidence`), y el verificador acepta tokens reales de DigitelTS (`TestRealDigitelTSTokenVerifies`, `tsatool verify-registration` sobre registros reales de DEV). |
+| DEV, PRE y PRO, con credenciales nuevas, sellan correctamente un onboarding | **Pendiente (Coolify)** | Prueba real desde local superada el 10/11/2026 (ver "Prueba real con DigitelTS"); falta el despliegue en los tres entornos. Procedimiento en deployment §4. Del lado del código: el flujo completo está probado contra un TSA local (`TestCreateRegistrationStoresVerifiedEvidence`), y el verificador acepta tokens reales de DigitelTS (`TestRealDigitelTSTokenVerifies`, `tsatool verify-registration` sobre registros reales de DEV). |
 | Un commit con un secreto es bloqueado por la CI o por GitHub | **Pendiente (infraestructura)** | Requiere activar *secret scanning* con *push protection* en GitHub. Como protección parcial en el código, `TestNoSecretsInLogCalls` impide registrar secretos de servicio. |
+
+## Prueba real con DigitelTS
+
+10/11/2026, endpoint de preproducción, credenciales nuevas, una sola petición (`TestTimestampAndVerify`, `-tags integration`): **PASS** (3,03 s).
+SHA-512 y nonce activados; firma y cadena verificadas. El token no incluye la CA intermedia; se carga del trust store local y la cadena TSU → CA TSA G1 → Root valida. Política del token: `0.4.0.2023.1.1`.
+Esto no cubre los despliegues de DEV/PRE/PRO ni la revocación de las credenciales antiguas.
 
 ## Criterios técnicos de la tarea
 
@@ -27,7 +33,7 @@ Estado a 10/11/2026, rama `fix/isbecore-478-tsa-hardening` (PR #10), tras correg
 | Respuestas manipuladas rechazadas | **Verificado** | Matriz anterior, `TestTruncatedResponsesNeverVerify` (todos los prefijos y todos los bit flips), `FuzzVerify` y `FuzzVerifyRealToken` (token real mutado con trust store externo; 90 s cada uno sin pánicos ni aceptaciones con contenido distinto). |
 | Mecanismo de confianza seguro | **Verificado** | Trust store embebido con procedencia documentada; descarga solo con huella fijada (`TestPinnedCADownload`); sin redirecciones. La intermedia `CA TSA G1` embebida se ofrece con cualquier fuente de anclas (fichero, PEM, URL fijada), solo si la emitió un ancla configurada y nunca como ancla: `TestRealTokenWithExternalTrustSources`, `TestEmbeddedIntermediateIsNeverAnAnchor`, `TestRealTokenVerificationIsOffline` (revisión PR #10). |
 | Timeout y controles HTTP | **Verificado** | `TestTimestampTimeout`, `TestTimestampContextCancellation`, `TestTimestampResponseTooLarge`, `TestTimestampHTTPStatuses`, `TestTimestampDoesNotFollowRedirects`. |
-| Nonce implementado y probado | **Verificado (código)** / **Pendiente (proveedor)** | `TestTimestampNonce` (ausente, incorrecto, respuesta reutilizada, único por petición, desactivado). Falta confirmar que DigitelTS lo devuelve (deployment §2.3). |
+| Nonce implementado y probado | **Verificado** | `TestTimestampNonce` (ausente, incorrecto, respuesta reutilizada, único por petición, desactivado). DigitelTS lo devuelve: comprobado en la prueba real del 10/11/2026. |
 | No se almacenan evidencias sin validar | **Verificado** | `TestCreateRegistrationFailsClosed` (TSA caída, firma inválida, nonce ausente, rechazo) y `TestCreateRegistrationFailsClosedOnAuthAndTimeout` (401, timeout): no quedan ni fila ni fichero. |
 | Compatibilidad histórica | **Verificado** | Formato de evidencia sin cambios (`TestTimestampedEvidenceFormatIsStable`); fila insertada como la guardaba la implementación anterior (SHA-512, sin nonce) verifica (`TestLegacyRegistrationEvidenceVerifies`); token real del 08/10 verifica con trust store embebido y externo; los dos registros reales de la BD de desarrollo verifican con `tsatool verify-registration`. Pendiente repetirlo sobre los datos de PRE y PRO (deployment §4.4.2). |
 | Logs y métricas | **Verificado** | `TestTimestampNeverLogsSecrets`. Las métricas `tsa_*` se registraban en el registro por defecto y `/metrics` servía otro: corregido; `TestMetricsEndpointExposesTSAMetrics` consulta `/metrics` (revisión PR #10). `password_set` ya no aparece como `[REDACTED]` (`TestRedactedConfigJSONKeepsPresenceFlags`). |
