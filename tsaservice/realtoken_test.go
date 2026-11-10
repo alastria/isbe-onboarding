@@ -104,17 +104,6 @@ func TestRealDigitelTSTokenRejections(t *testing.T) {
 		}
 	})
 
-	t.Run("root only, as configured before", func(t *testing.T) {
-		root, err := os.ReadFile("trust/digitelts/root-ca.pem")
-		if err != nil {
-			t.Fatal(err)
-		}
-		v := embeddedVerifier(t, TSAConfig{TrustAnchorsPEM: string(root)})
-		if _, err := v.VerifyDigest(tsr, "sha512", digest); reasonOf(err) != ReasonChain {
-			t.Fatalf("expected chain failure without the intermediate, got %v", err)
-		}
-	})
-
 	t.Run("unrelated trust anchor", func(t *testing.T) {
 		inter, err := os.ReadFile("trust/digitelts/qualified-ca-tsa-g1.pem")
 		if err != nil {

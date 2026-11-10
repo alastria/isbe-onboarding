@@ -1,6 +1,7 @@
 package tsaservice
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"crypto/x509"
@@ -63,17 +64,28 @@ func loadTrustStore(ctx context.Context, cfg *TSAConfig, client *http.Client, lo
 		if anchorsData, err = embeddedTrust.ReadFile(embeddedRootFile); err != nil {
 			return nil, configErrorf("embedded trust store: %v", err)
 		}
-		inter, err := embeddedTrust.ReadFile(embeddedIntermediateFile)
-		if err != nil {
-			return nil, configErrorf("embedded trust store: %v", err)
-		}
-		if ts.intermediates, err = parseCertificates(inter); err != nil {
-			return nil, configErrorf("embedded intermediates: %v", err)
-		}
 	}
 
 	if ts.anchors, err = parseCertificates(anchorsData); err != nil {
 		return nil, configErrorf("trust anchors (%s): %v", ts.source, err)
+	}
+
+	// DigitelTS tokens do not carry the "CA TSA G1" intermediate, so the
+	// embedded copy is offered as a path-building candidate whatever the anchor
+	// source (file, PEM, URL or embedded). It is never an anchor: it is kept
+	// only when one of the configured anchors signed it, and signer.Verify still
+	// requires the whole path to end in a configured anchor. With anchors of a
+	// different hierarchy it is simply not loaded.
+	embeddedInter, err := embeddedIntermediates()
+	if err != nil {
+		return nil, err
+	}
+	for _, c := range embeddedInter {
+		if issuedByAnyOf(c, ts.anchors) {
+			ts.intermediates = append(ts.intermediates, c)
+		} else {
+			logger.Info("embedded TSA intermediate not used: no configured trust anchor issued it", "subject", c.Subject.String(), "sha256", certFingerprint(c), "source", ts.source)
+		}
 	}
 
 	if len(cfg.TrustAnchorSHA256) > 0 {
@@ -101,7 +113,11 @@ func loadTrustStore(ctx context.Context, cfg *TSAConfig, client *http.Client, lo
 		if err != nil {
 			return nil, configErrorf("TSA_INTERMEDIATES_FILE: %v", err)
 		}
-		ts.intermediates = append(ts.intermediates, extra...)
+		for _, c := range extra {
+			if !containsCert(ts.intermediates, c) {
+				ts.intermediates = append(ts.intermediates, c)
+			}
+		}
 	}
 
 	now := time.Now()
@@ -120,6 +136,42 @@ func loadTrustStore(ctx context.Context, cfg *TSAConfig, client *http.Client, lo
 		logger.Info("TSA intermediate certificate loaded", "subject", c.Subject.String(), "sha256", certFingerprint(c), "not_after", c.NotAfter.Format(time.RFC3339))
 	}
 	return ts, nil
+}
+
+// embeddedIntermediates returns the intermediate CA certificates versioned with the code.
+func embeddedIntermediates() ([]*x509.Certificate, error) {
+	data, err := embeddedTrust.ReadFile(embeddedIntermediateFile)
+	if err != nil {
+		return nil, configErrorf("embedded trust store: %v", err)
+	}
+	certs, err := parseCertificates(data)
+	if err != nil {
+		return nil, configErrorf("embedded intermediates: %v", err)
+	}
+	return certs, nil
+}
+
+// issuedByAnyOf reports whether c is a CA certificate whose signature verifies
+// with the key of one of the anchors (and whose issuer name matches it).
+func issuedByAnyOf(c *x509.Certificate, anchors []*x509.Certificate) bool {
+	if !c.IsCA || !c.BasicConstraintsValid {
+		return false
+	}
+	for _, a := range anchors {
+		if bytes.Equal(c.RawIssuer, a.RawSubject) && c.CheckSignatureFrom(a) == nil {
+			return true
+		}
+	}
+	return false
+}
+
+func containsCert(list []*x509.Certificate, c *x509.Certificate) bool {
+	for _, x := range list {
+		if x.Equal(c) {
+			return true
+		}
+	}
+	return false
 }
 
 // parseCertificates accepts a PEM bundle of CERTIFICATE blocks or a single DER certificate.
