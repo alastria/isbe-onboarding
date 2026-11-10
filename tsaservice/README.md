@@ -141,6 +141,14 @@ Overrides, in order of precedence:
 * `TSA_INTERMEDIATES_FILE` — extra intermediates (e.g. when the provider renews
   its TSA CA). Intermediates are not trusted by themselves: they must chain to an anchor.
 
+The embedded `CA TSA G1` intermediate is offered as a path-building candidate
+with **every** anchor source (file, PEM, pinned URL or embedded), because
+DigitelTS tokens never carry it. It is loaded only when one of the configured
+anchors signed it and it is never added to the roots, so anchors of another
+hierarchy are unaffected (`TestRealTokenWithExternalTrustSources`,
+`TestEmbeddedIntermediateIsNeverAnAnchor`). No certificate is downloaded while
+verifying a token (`TestRealTokenVerificationIsOffline`).
+
 Renewal: add the new intermediate/anchor to a PEM bundle (keep the old ones, so
 that historical tokens still validate at their genTime), deploy, then remove
 obsolete ones only when no evidence depends on them.
@@ -184,7 +192,9 @@ verification failed` (`reason`). Each operation has an `op_id`; registrations
 add `correlation_id` (the auth code). Passwords, `Authorization` headers and
 response bodies are never logged.
 
-Metrics on `/metrics`:
+Metrics on `/metrics` (registered by `tsaservice.RegisterMetrics` on the
+registry that `/metrics` serves, see `certauthserver/metrics.go`; the `outcome`
+series start at 0):
 
 * `tsa_requests_total{outcome}` — `success`, `transport_error`, `http_error`, `rejected`, `verification_failed`
 * `tsa_request_duration_seconds{outcome}`
@@ -237,8 +247,15 @@ re-timestamp before the TSA certificate expires (G3 TSU: 2029-03-14).
 
 ```bash
 go test ./...                                     # default: no network, no credentials
-go test -tags integration ./tsaservice/ -run TestTimestampAndVerify   # REAL TSA, manual only
+go test -tags integration -count=1 -run '^TestTimestampAndVerify$' -v ./tsaservice/   # ONE real request, manual only
 ```
+
+`TestTimestampAndVerify` shares its checks with `TestAcceptanceHarnessAgainstMock`
+(`acceptance_helper_test.go`), which runs them offline against the mock: one
+request, SHA-512, nonce echoed, full verification, 3-certificate chain ending in
+the expected anchor, no host other than the TSA contacted, offline
+re-verification of the stored response. Never run `go test -tags integration ./...`:
+it would also send real emails and call the EU DSS demo.
 
 Every mandatory check of the policy above has a dedicated negative case in
 `TestMandatoryChecksMatrix` (one violation per token, expected rejection

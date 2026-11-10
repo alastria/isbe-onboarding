@@ -38,7 +38,7 @@ The following environment variables can be used to override configuration values
 | `TSA_URL` | Timestamp Authority URL (HTTPS) | Required except in `local` |
 | `TSA_TRUST_ANCHORS_FILE` | PEM file with the TSA trust anchors | Embedded DigitelTS root |
 | `TSA_TRUST_ANCHOR_SHA256` | SHA-256 pins of the trust anchors | None |
-| `TSA_INTERMEDIATES_FILE` | PEM file with extra TSA intermediate CAs | Embedded DigitelTS CA TSA G1 |
+| `TSA_INTERMEDIATES_FILE` | PEM file with extra TSA intermediate CAs | None (the embedded DigitelTS CA TSA G1 is always offered when a configured anchor issued it) |
 | `TSA_CA_CERT_URL` | Legacy: download the TSA root at start-up (requires a pin) | Unset |
 | `TSA_HASH_ALGORITHM` | `sha256`, `sha384` or `sha512` | `sha512` |
 | `TSA_POLICY_OID` | Required TSA policy OID | None |
