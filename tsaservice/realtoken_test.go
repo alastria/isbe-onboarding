@@ -131,3 +131,37 @@ func TestEmbeddedTrustStoreFingerprint(t *testing.T) {
 		t.Fatalf("embedded root fingerprint changed: %s", got)
 	}
 }
+
+// FuzzVerifyRealToken mutates the genuine DigitelTS token and verifies it with
+// an external (root-only) trust store. Besides never panicking, any input that
+// verifies must carry exactly the signed content of the original token: a
+// mutation may only touch unsigned parts of the CMS structure.
+func FuzzVerifyRealToken(f *testing.F) {
+	tsr, err := os.ReadFile("testdata/digitelts-2026-10-08.tsr")
+	if err != nil {
+		f.Fatal(err)
+	}
+	h, _ := os.ReadFile("testdata/digitelts-2026-10-08.imprint.hex")
+	digest, _ := hex.DecodeString(strings.TrimSpace(string(h)))
+	root, _ := embeddedTrust.ReadFile(embeddedRootFile)
+	v, err := NewVerifier(context.Background(), &TSAConfig{TrustAnchorsPEM: string(root)}, WithLogger(discardLogger()))
+	if err != nil {
+		f.Fatal(err)
+	}
+	want, err := v.VerifyDigest(tsr, "sha512", digest)
+	if err != nil {
+		f.Fatalf("seed rejected: %v", err)
+	}
+	f.Add(tsr)
+	f.Add(tsr[:len(tsr)/2])
+	f.Fuzz(func(t *testing.T, in []byte) {
+		got, err := v.VerifyDigest(in, "sha512", digest)
+		if err != nil {
+			return
+		}
+		if !got.GenTime.Equal(want.GenTime) || got.SerialNumber.Cmp(want.SerialNumber) != 0 ||
+			got.Policy != want.Policy || !got.Signer.Equal(want.Signer) || len(got.Chain) != 3 {
+			t.Fatalf("mutated token accepted with different signed content")
+		}
+	})
+}
