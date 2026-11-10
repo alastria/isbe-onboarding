@@ -15,7 +15,8 @@ const redacted = "[REDACTED]"
 
 // RedactedConfigJSON returns the configuration as indented JSON with every
 // sensitive value replaced by "[REDACTED]" (or left empty when unset, so that
-// a missing secret is still visible when diagnosing a deployment).
+// a missing secret is still visible when diagnosing a deployment). Boolean
+// values under sensitive keys, such as the TSA "password_set" flag, are kept.
 func RedactedConfigJSON(cfg *Config) ([]byte, error) {
 	raw, err := json.Marshal(cfg)
 	if err != nil {
@@ -34,6 +35,12 @@ func redactTree(v any) any {
 		for k, val := range t {
 			if sensitiveKey.MatchString(k) {
 				if s, ok := val.(string); ok && s == "" {
+					continue
+				}
+				// A boolean cannot carry a secret: presence flags such as
+				// "password_set" stay visible. Any other type (string,
+				// number, object, array) under a sensitive key is redacted.
+				if _, ok := val.(bool); ok {
 					continue
 				}
 				if val != nil {

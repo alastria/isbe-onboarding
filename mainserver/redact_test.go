@@ -133,3 +133,50 @@ func TestSensitiveKeyPattern(t *testing.T) {
 		}
 	}
 }
+
+// Regression test for PR #10 review: the boolean TSA "password_set" flag was
+// printed as "[REDACTED]", hiding whether TSA_PASSWORD was configured.
+func TestRedactedConfigJSONKeepsPresenceFlags(t *testing.T) {
+	const secretPassword = "VAL:tsa-password-must-not-leak"
+	for _, set := range []bool{true, false} {
+		cfg := &Config{CertAuthConfig: &certauth.ConfigCertAuth{TSAConfig: &tsaservice.TSAConfig{TSAUser: "u"}}}
+		if set {
+			cfg.CertAuthConfig.TSAConfig.TSAPassword = secretPassword
+		}
+		out, err := RedactedConfigJSON(cfg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		dump := string(out)
+		if strings.Contains(dump, secretPassword) {
+			t.Fatal("TSA password printed in the configuration dump")
+		}
+		want := `"password_set": ` + map[bool]string{true: "true", false: "false"}[set]
+		if !strings.Contains(dump, want) {
+			t.Errorf("dump does not contain %s:\n%s", want, dump)
+		}
+	}
+}
+
+func TestRedactTreeOnlyKeepsBooleans(t *testing.T) {
+	tree := map[string]any{
+		"password_set":   true,
+		"password":       "hunter2-not-real",
+		"api_key":        float64(12345),
+		"secret":         map[string]any{"value": "x"},
+		"client_secret":  []any{"a"},
+		"empty_password": "",
+	}
+	got := redactTree(tree).(map[string]any)
+	if got["password_set"] != true {
+		t.Errorf("password_set = %v", got["password_set"])
+	}
+	for _, k := range []string{"password", "api_key", "secret", "client_secret"} {
+		if got[k] != redacted {
+			t.Errorf("%s = %v, want redacted", k, got[k])
+		}
+	}
+	if got["empty_password"] != "" {
+		t.Errorf("empty secret should stay visible as empty")
+	}
+}
