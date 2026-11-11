@@ -13,12 +13,15 @@ The project includes a Dockerfile which can be used to generate a Docker image. 
 - `PROFILE`: Optional. The profile to use. If you omit it, the default is `local`. The available profiles are `isbe-dev`, `isbe-pre`, `isbe-pro`.
 - `SMTP_USERNAME`: The username for the SMTP server used to send emails to the end-users.
 - `SMTP_PASSWORD`: The password for the SMTP server.
-- `TSA_USER`: The username for the TSA (Timestamping Authority) server, used to timestamp the act of user acceptance of the terms of service.
-- `TSA_PASSWORD`: The password for the TSA server.
+- `TSA_URL`: The RFC 3161 endpoint of the TSA (Timestamping Authority), used to timestamp the act of user acceptance of the terms of service. Required for `isbe-dev`, `isbe-pre` and `isbe-pro` (HTTPS only); the `local` profile defaults to the provider's pre-production endpoint.
+- `TSA_USER`: The username for the TSA server (or `TSA_USER_FILE` with the path of a mounted secret).
+- `TSA_PASSWORD`: The password for the TSA server (or `TSA_PASSWORD_FILE` with the path of a mounted secret).
 
 The `PROFILE` environment variable is used to select the profile to use for a deployment in ISBE. The available profiles are `isbe-dev`, `isbe-pre` and `isbe-pro`. Selecting a profile will configure the application with the appropriate values for the target environment.
 
-The other four environment variables are required for all profiles. You should ask your systems administyrator for the appropriate values for your environment.
+The SMTP and TSA variables are required for all profiles; there are no built-in credentials and the server refuses to start if any of them is missing or invalid. You should ask your systems administrator for the appropriate values for your environment.
+
+The TSA integration (trust store, verification policy, optional variables, metrics, how to verify stored evidence) is documented in [tsaservice/README.md](tsaservice/README.md). The deployment steps for the TSA hardening are in [docs/ISBECORE-478-deployment.md](docs/ISBECORE-478-deployment.md).
 
 ## Configuration Reference
 
@@ -32,14 +35,25 @@ The following environment variables can be used to override configuration values
 | `CERTSEC_PORT` | Port for CertSec service | `8011` |
 | `ONBOARD_URL` | URL for the Onboard service | Profile dependent |
 | `ONBOARD_PORT` | Port for Onboard service | `8012` |
-| `TSA_URL` | Timestamp Authority URL | `https://timestamp-service...` |
+| `TSA_URL` | Timestamp Authority URL (HTTPS) | Required except in `local` |
+| `TSA_TRUST_ANCHORS_FILE` | PEM file with the TSA trust anchors | Embedded DigitelTS root |
+| `TSA_TRUST_ANCHOR_SHA256` | SHA-256 pins of the trust anchors | None |
+| `TSA_INTERMEDIATES_FILE` | PEM file with extra TSA intermediate CAs | None (the embedded DigitelTS CA TSA G1 is always offered when a configured anchor issued it) |
+| `TSA_CA_CERT_URL` | Legacy: download the TSA root at start-up (requires a pin) | Unset |
+| `TSA_HASH_ALGORITHM` | `sha256`, `sha384` or `sha512` | `sha512` |
+| `TSA_POLICY_OID` | Required TSA policy OID | None |
+| `TSA_NONCE` | Send and require an RFC 3161 nonce | `true` |
+| `TSA_TIMEOUT` | Timeout of TSA requests | `30s` |
+| `TSA_REVOCATION_CHECK` | `none` or `crl` | `none` |
 | `MANAGEMENT_URL` | Management Service URL | Profile dependent |
 | `CERTAUTH_LOGS_NOCOLOR` | Set to "true" to disable log coloring | `false` |
 
 ## Observability
 
 The onboard application exposes Prometheus metrics at the `/metrics` endpoint of the CertAuth service. 
-These metrics include standard Go runtime metrics as well as HTTP request metrics.
+These metrics include standard Go runtime metrics, HTTP request metrics and the TSA metrics
+(`tsa_requests_total`, `tsa_request_duration_seconds`, `tsa_errors_total`, `tsa_verification_failures_total`,
+see [tsaservice/README.md](tsaservice/README.md#observability)).
 
 ### Endpoint
 `GET /metrics`

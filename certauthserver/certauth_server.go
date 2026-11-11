@@ -22,7 +22,6 @@ import (
 	"github.com/alastria/isbe-onboarding/internal/tmfservice"
 	"github.com/alastria/isbe-onboarding/tsaservice"
 	"github.com/alastria/isbe-onboarding/types"
-	"github.com/ansrivas/fiberprometheus/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/favicon"
@@ -154,9 +153,9 @@ func NewCertAuth(
 	})
 
 	// Observability
-	prometheus := fiberprometheus.New("certauth")
-	prometheus.RegisterAt(httpServer, "/metrics")
-	httpServer.Use(prometheus.Middleware)
+	if err := setupMetrics(httpServer); err != nil {
+		return nil, errl.Errorf("failed to initialize metrics: %w", err)
+	}
 
 	// Recover middleware recovers from panics anywhere in the stack chain and handles the control to the centralized ErrorHandler
 	httpServer.Use(recover.New())
@@ -181,10 +180,12 @@ func NewCertAuth(
 		return nil, errl.Errorf("failed to initialize JWT service: %w", err)
 	}
 
-	// Initialize timestamping service
+	// Initialize timestamping service. It validates the configuration and loads the
+	// trust store; the server does not start with an incomplete or unsafe TSA setup.
+	// The URL is not included in the error: an invalid one could carry credentials.
 	tsaService, err := tsaservice.NewTSAService(cfg.TSAConfig)
 	if err != nil {
-		return nil, errl.Errorf("failed to initialize TSA service at: %s, %w", cfg.TSAConfig.TSAURL, err)
+		return nil, errl.Errorf("failed to initialize TSA service: %w", err)
 	}
 
 	// Initialize the email service

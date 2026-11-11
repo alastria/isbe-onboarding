@@ -4,6 +4,7 @@ import (
 	"log/slog"
 
 	"github.com/alastria/isbe-onboarding/internal/errl"
+	"github.com/alastria/isbe-onboarding/tsaservice"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/basicauth"
 )
@@ -88,7 +89,7 @@ func (s *CertAuthServer) UpdateRegistrations(c *fiber.Ctx) error {
 		}
 
 		slog.Info("Updating registration", "org_id", registration.OrganizationIdentifier)
-		err := s.db.UpdateRegistration(s.tsaService, registration.OrganizationIdentifier, registration.EidasCert, registration.ContractForm, s.certAuthURL)
+		err := s.db.UpdateRegistration(tsaservice.WithCorrelationID(c.UserContext(), "admin-update-"+registration.OrganizationIdentifier), s.tsaService, registration.OrganizationIdentifier, registration.EidasCert, registration.ContractForm, s.certAuthURL)
 		if err != nil {
 			return errl.Errorf("failed to update registration: %w", err)
 		}
