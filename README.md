@@ -46,6 +46,7 @@ The following environment variables can be used to override configuration values
 | `TSA_TIMEOUT` | Timeout of TSA requests | `30s` |
 | `TSA_REVOCATION_CHECK` | `none` or `crl` | `none` |
 | `MANAGEMENT_URL` | Management Service URL | Profile dependent |
+| `MANUAL_APPROVAL_CA_FILE` | PEM bundle with the root and issuing intermediate CAs trusted for manually approved non-eIDAS certificates (see [docs/manual-approval-policy.md](docs/manual-approval-policy.md)) | Unset (policy disabled) |
 | `CERTAUTH_LOGS_NOCOLOR` | Set to "true" to disable log coloring | `false` |
 
 ## Observability

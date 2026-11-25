@@ -2,6 +2,7 @@ package certauth
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -17,6 +18,7 @@ import (
 	"github.com/alastria/isbe-onboarding/internal/models"
 	"github.com/alastria/isbe-onboarding/internal/orgid"
 	"github.com/alastria/isbe-onboarding/internal/tmfservice"
+	"github.com/alastria/isbe-onboarding/internal/util/x509util"
 	"github.com/alastria/isbe-onboarding/tsaservice"
 	"github.com/alastria/isbe-onboarding/types"
 	"github.com/gofiber/fiber/v2"
@@ -131,16 +133,25 @@ func (s *CertAuthServer) pageRequestEmail(c *fiber.Ctx) error {
 	slog.Info("======== PROFILE ========", "profile", s.profile)
 	slog.Info("======== PROFILE ========")
 
-	// Check if CertSec returned some error
+	// Check if CertSec rejected the certificate. The details go to the logs; the user sees a
+	// message for the reason, never the internal error.
 	certError := c.Query("error")
 	if certError != "" || authProcess.ErrorInProcess != nil {
 		err := authProcess.ErrorInProcess
-		slog.Error("Error:", "error", err)
+		slog.Error("Certificate rejected by CertSec", "auth_code", authCode, "error", err)
+		templateName := "cert_received_error"
 		if isEnglish {
-			return s.htmlRender.Render(c, "error_en", fiber.Map{"message": err})
+			templateName = "cert_received_error_en"
 		}
-		return s.htmlRender.Render(c, "error", fiber.Map{
-			"message": err,
+		notApproved := errors.Is(err, models.ErrCertificateNotApproved)
+		notValidNow := errors.Is(err, models.ErrCertificateNotValidNow)
+		unreadable := errors.Is(err, models.ErrCertificateUnreadable) || err == nil
+		return s.htmlRender.Render(c, templateName, fiber.Map{
+			"hideCertificateData":    true,
+			"certificateNotApproved": notApproved,
+			"certificateNotValidNow": notValidNow,
+			"certificateUnreadable":  unreadable,
+			"serviceError":           !notApproved && !notValidNow && !unreadable,
 		})
 	}
 
@@ -176,35 +187,60 @@ func (s *CertAuthServer) pageRequestEmail(c *fiber.Ctx) error {
 		})
 	}
 
-	// Check that the certificate is a valid eIDAS one
-	_, errService, errValidation := VerifyCertificate(certData.CertificateDER, s.euDSSURL)
-	if errService == nil && errValidation == nil {
-		certData.EIDASCertificate = true
-	} else {
-		// Log the validation error with certificate details for debugging
-		slog.Warn("Certificate validation failed (proceeding in test/demo mode)", "serviceError", errService, "validationError", errValidation, "subject", certData.Subject)
-		// In ISBE_PRO we do not allow non-eIDAS certificates to proceed
-		// The UI will show a warning that the certificate is not eIDAS compliant
-		if s.profile == types.PROFILE_ISBE_PRO && certData.OrganizationID != "VATES-12345678J" {
-			// Present the screen
-			templateName := "cert_received_error"
-			postAction := sendEmailVerificationEndpoint
-			if isEnglish {
-				templateName = "cert_received_error_en"
-				postAction += "/en"
-			}
-			return s.htmlRender.Render(c, templateName, fiber.Map{
-				"authCode":        authCode,
-				"authCodeObj":     authProcess,
-				"certData":        certData,
-				"certType":        certData.CertificateType,
-				"subject":         certData.Subject,
-				"postAction":      postAction,
-				"production":      s.profile == types.PROFILE_ISBE_PRO,
-				"serviceError":    errService != nil,
-				"validationError": errValidation != nil,
-			})
+	// Decide under which trust policy the certificate is accepted: eIDAS (EU DSS) or the
+	// alternative policy for manually approved certificates. See trust_policy.go.
+	decision := s.evaluateCertificateTrust(c.UserContext(), certData)
+	certData.EIDASCertificate = decision.trust == trustEIDAS
+	// Bind the decision to this certificate: the next steps of the flow and the token
+	// endpoint require it (see getAcceptedCertificateProcess).
+	authProcess.TrustedCertificateSHA256 = ""
+	authProcess.CertificateFlowCompleted = false
+	if decision.accepted() {
+		authProcess.TrustedCertificateSHA256 = models.CertificateFingerprint(certData.Certificate)
+	}
+	logFields := []any{
+		"auth_code", authCode,
+		"trust_policy", decision.trust.String(),
+		"profile", s.profile,
+		"organization_identifier", certData.OrganizationID,
+		"certificate_sha256", models.CertificateFingerprint(certData.Certificate),
+	}
+	if decision.trust != trustEIDAS {
+		logFields = append(logFields, "eidas_service_error", decision.eidasServiceError, "eidas_validation_error", decision.eidasValidationError)
+	}
+	if decision.manuallyApproved {
+		logFields = append(logFields, "manually_approved", true, "manual_policy_error", decision.manualPolicyError)
+	}
+
+	switch decision.trust {
+	case trustEIDAS, trustManualApproval:
+		slog.Info("Certificate accepted", logFields...)
+	case trustUnverified:
+		slog.Warn("Certificate accepted without validation (non-production test/demo mode)", logFields...)
+	default:
+		slog.Warn("Certificate rejected", logFields...)
+
+		// Present the screen
+		templateName := "cert_received_error"
+		postAction := sendEmailVerificationEndpoint
+		if isEnglish {
+			templateName = "cert_received_error_en"
+			postAction += "/en"
 		}
+		return s.htmlRender.Render(c, templateName, fiber.Map{
+			"authCode":    authCode,
+			"authCodeObj": authProcess,
+			"certData":    certData,
+			"certType":    certData.CertificateType,
+			"subject":     certData.Subject,
+			"postAction":  postAction,
+			"production":  s.profile == types.PROFILE_ISBE_PRO,
+			// A manually approved certificate is judged by the manual approval policy only
+			"manualPolicyUnavailable": decision.manuallyApproved && decision.manualPolicyUnavailable(),
+			"manualPolicyError":       decision.manuallyApproved && !decision.manualPolicyUnavailable(),
+			"serviceError":            !decision.manuallyApproved && decision.eidasServiceError != nil,
+			"validationError":         !decision.manuallyApproved && decision.eidasServiceError == nil && decision.eidasValidationError != nil,
+		})
 	}
 
 	// Check if the organization is already registered
@@ -251,6 +287,7 @@ func (s *CertAuthServer) pageRequestEmail(c *fiber.Ctx) error {
 		// Store email of the user in the authProcess struct
 		authProcess.Email = email
 		authProcess.Powers = powers
+		authProcess.CertificateFlowCompleted = true
 
 		redirectURL := fmt.Sprintf("%s?code=%s", authProcess.RedirectURI, authProcess.Code)
 		if authProcess.State != "" {
@@ -272,13 +309,14 @@ func (s *CertAuthServer) pageRequestEmail(c *fiber.Ctx) error {
 		postAction += "/en"
 	}
 	return s.htmlRender.Render(c, templateName, fiber.Map{
-		"authCode":    authCode,
-		"authCodeObj": authProcess,
-		"certData":    certData,
-		"certType":    certData.CertificateType,
-		"subject":     certData.Subject,
-		"postAction":  postAction,
-		"production":  s.profile == types.PROFILE_ISBE_PRO,
+		"authCode":       authCode,
+		"authCodeObj":    authProcess,
+		"certData":       certData,
+		"certType":       certData.CertificateType,
+		"subject":        certData.Subject,
+		"postAction":     postAction,
+		"production":     s.profile == types.PROFILE_ISBE_PRO,
+		"manualApproval": decision.trust == trustManualApproval,
 	})
 
 }
@@ -416,7 +454,7 @@ func (s *CertAuthServer) sendEmailVerification(c *fiber.Ctx) error {
 	authCode := c.FormValue("auth_code")
 
 	// Retrieve the Authentication Process object from the cache
-	authProcess, err := s.getAuthProcess(authCode)
+	authProcess, err := s.getAcceptedCertificateProcess(authCode)
 	if err != nil {
 		err := errl.Errorf("getAuthProcess: %w", err)
 		slog.Error(err.Error())
@@ -541,7 +579,7 @@ func (s *CertAuthServer) verifyEmailCodeAndPresentContractForm(c *fiber.Ctx) err
 	slog.Info("Email verification code verification requested", "email", email, "auth_code", authCode)
 
 	// Retrieve the Authentication Process object from the cache
-	authProcess, err := s.getAuthProcess(authCode)
+	authProcess, err := s.getAcceptedCertificateProcess(authCode)
 	if err != nil {
 		err := errl.Errorf("getAuthProcess: %w", err)
 		slog.Error(err.Error())
@@ -595,6 +633,8 @@ func (s *CertAuthServer) verifyEmailCodeAndPresentContractForm(c *fiber.Ctx) err
 	month := currentDate.Month()
 	day := currentDate.Day()
 
+	representativeName, representativeNameEditable := representativeNameFromCertificate(certData.Subject)
+
 	formData := models.ContractForm{
 		TodayDay:            day,
 		TodayMonth:          int(month),
@@ -602,8 +642,8 @@ func (s *CertAuthServer) verifyEmailCodeAndPresentContractForm(c *fiber.Ctx) err
 		OrganizationName:    certData.Subject.Organization,
 		OrganizationCountry: certData.Subject.Country,
 		OrganizationAddress: certData.Subject.StreetAddress,
-		OrganizationNif:     certData.Subject.OrganizationIdentifier,
-		RepresentativeName:  certData.Subject.CommonName,
+		OrganizationNif:     certData.OrganizationID,
+		RepresentativeName:  representativeName,
 		RepresentativeEmail: storedEmail,
 	}
 
@@ -615,14 +655,62 @@ func (s *CertAuthServer) verifyEmailCodeAndPresentContractForm(c *fiber.Ctx) err
 		postAction += "/en"
 	}
 	return s.htmlRender.Render(c, templateName, fiber.Map{
-		"authCode":    authCode,
-		"authCodeObj": authProcess,
-		"certType":    certData.CertificateType,
-		"subject":     certData.Subject,
-		"formData":    formData,
-		"postAction":  postAction,
-		"countryName": s.countryName(formData.OrganizationCountry),
+		"authCode":                   authCode,
+		"authCodeObj":                authProcess,
+		"certType":                   certData.CertificateType,
+		"subject":                    certData.Subject,
+		"formData":                   formData,
+		"postAction":                 postAction,
+		"countryName":                s.countryName(formData.OrganizationCountry),
+		"representativeNameEditable": representativeNameEditable,
 	})
+}
+
+// representativeNameFromCertificate returns the name of the legal representative to show in the
+// contract and whether the user has to enter it. Certificates of a natural person (with givenName
+// or surname) keep the common name, as before. Certificates without personal name attributes,
+// such as organizational certificates, do not identify the representative: the common name is
+// offered only when it is not just the organization name, and the field is editable.
+func representativeNameFromCertificate(subject *x509util.ELSIName) (name string, editable bool) {
+	if subject.GivenName != "" || subject.Surname != "" {
+		return subject.CommonName, false
+	}
+	cn := strings.TrimSpace(subject.CommonName)
+	if cn == "" || strings.EqualFold(cn, strings.TrimSpace(subject.Organization)) {
+		return "", true
+	}
+	return cn, true
+}
+
+// errOrganizationIdentifierMismatch: the form tried to change the organization identifier.
+var errOrganizationIdentifierMismatch = errors.New("the organization identifier of the form does not match the certificate")
+
+// enforceCertificateIdentity makes the organization identifier of the contract the one that the
+// certificate authenticated (its organizationIdentifier, or the one approved for it in the
+// whitelist). The value of the form is never trusted: if it is present and different, the
+// request is rejected. normalize selects the canonical (VATxx-) form used for TMF and management.
+func enforceCertificateIdentity(formData *models.ContractForm, certData *models.CertificateData, normalize bool) error {
+	if certData == nil || certData.OrganizationID == "" {
+		return errl.Errorf("certificate data without organization identifier")
+	}
+	country := ""
+	if certData.Subject != nil {
+		country = certData.Subject.Country
+	}
+	want := orgid.NormalizeOrganizationIdentifier(certData.OrganizationID, country)
+	if submitted := strings.TrimSpace(formData.OrganizationNif); submitted != "" &&
+		orgid.NormalizeOrganizationIdentifier(submitted, country) != want {
+		return errOrganizationIdentifierMismatch
+	}
+	if normalize {
+		formData.OrganizationNif = want
+	} else {
+		formData.OrganizationNif = certData.OrganizationID
+	}
+	if strings.TrimSpace(formData.RepresentativeName) == "" {
+		return errl.Errorf("missing representative name")
+	}
+	return nil
 }
 
 func (s *CertAuthServer) pagePresentContractForAcceptance(c *fiber.Ctx) error {
@@ -637,7 +725,7 @@ func (s *CertAuthServer) pagePresentContractForAcceptance(c *fiber.Ctx) error {
 	}
 
 	// Retrieve the Authentication Process object from the cache
-	authProcess, err := s.getAuthProcess(authCode)
+	authProcess, err := s.getAcceptedCertificateProcess(authCode)
 	if err != nil {
 		err := errl.Errorf("getAuthProcess: %w", err)
 		slog.Error(err.Error())
@@ -714,6 +802,14 @@ func (s *CertAuthServer) pagePresentContractForAcceptance(c *fiber.Ctx) error {
 	}
 
 	certData := authProcess.CertificateData
+
+	// The organization identifier always comes from the certificate, never from the form
+	if err := enforceCertificateIdentity(&formData, certData, false); err != nil {
+		slog.Error("Invalid contract form", "error", err, "auth_code", authCode, "organization_identifier", certData.OrganizationID)
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
 
 	// Update the email field in the certificate data
 	certData.Subject.EmailAddress = storedEmail
@@ -827,7 +923,7 @@ func (s *CertAuthServer) handleContractAccepted(c *fiber.Ctx) error {
 	}
 
 	// Retrieve the Authentication Process object from the cache
-	authProcess, err := s.getAuthProcess(authCode)
+	authProcess, err := s.getAcceptedCertificateProcess(authCode)
 	if err != nil {
 		err := errl.Errorf("getAuthProcess: %w", err)
 		slog.Error(err.Error())
@@ -848,9 +944,15 @@ func (s *CertAuthServer) handleContractAccepted(c *fiber.Ctx) error {
 		return errl.Errorf("failed to parse form: %w", err)
 	}
 
-	// Normalise the organization identifier. Values with an ETSI semantic prefix (VATES-, NTRNL-, ...)
+	// The organization identifier always comes from the certificate (or its whitelist approval),
+	// never from the form. It is normalised: values with an ETSI semantic prefix (VATES-, NTRNL-, ...)
 	// are kept as they come in the certificate, and bare national IDs get the prefix 'VATXX-'.
-	formData.OrganizationNif = orgid.NormalizeOrganizationIdentifier(formData.OrganizationNif, formData.OrganizationCountry)
+	if err := enforceCertificateIdentity(&formData, authProcess.CertificateData, true); err != nil {
+		slog.Error("Invalid contract form", "error", err, "auth_code", authCode)
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
 
 	// Check that we have the email of the representative
 	if formData.RepresentativeEmail == "" {
@@ -963,6 +1065,8 @@ func (s *CertAuthServer) handleContractAccepted(c *fiber.Ctx) error {
 
 	// Set SSO cookie
 	c.Cookie(ssoCookie)
+
+	authProcess.CertificateFlowCompleted = true
 
 	// Redirect (302) to RP with auth code
 	slog.Info("User consent processed successfully", "email", storedEmail, "auth_code", authCode)

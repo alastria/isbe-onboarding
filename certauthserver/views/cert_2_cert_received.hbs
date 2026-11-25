@@ -55,7 +55,17 @@
             </div>
         </div>
 
-        {{if not .certData.EIDASCertificate}}
+        {{ if .manualApproval }}
+        <div class="ui blue icon message">
+            <i class="check circle outline icon"></i>
+            <div class="content">
+                <div class="header">Certificado aprobado manualmente</div>
+                Este certificado no es un certificado cualificado eIDAS. Se acepta porque ha sido aprobado
+                expresamente para la organización {{ .certData.OrganizationID }} y cumple la política de confianza
+                para certificados aprobados manualmente (cadena de confianza, vigencia y revocación).
+            </div>
+        </div>
+        {{ else if not .certData.EIDASCertificate }}
         <div class="ui yellow icon message">
             <i class="exclamation triangle icon"></i>
             <div class="content">

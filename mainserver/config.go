@@ -387,6 +387,10 @@ func LoadConfig() (*Config, string, error) {
 	// Check for override of the DSS (Digital Signature Services) URL
 	cfg.CertAuthConfig.EUDSSURL = GetStringEnvOrDefault("DSS_URL", cfg.CertAuthConfig.EUDSSURL)
 
+	// PEM bundle with the root and intermediate CAs trusted for manually approved certificates
+	// that are not qualified eIDAS certificates (unset: policy disabled, production rejects them)
+	cfg.CertAuthConfig.ManualApprovalCAFile = strings.TrimSpace(GetStringEnvOrDefault("MANUAL_APPROVAL_CA_FILE", ""))
+
 	// Check for override of the email service config
 	cfg.CertAuthConfig.EmailConfig.IMAP = GetStringEnvOrDefault("EMAIL_IMAP", cfg.CertAuthConfig.EmailConfig.IMAP)
 	cfg.CertAuthConfig.EmailConfig.SMTP = GetStringEnvOrDefault("EMAIL_SMTP", cfg.CertAuthConfig.EmailConfig.SMTP)

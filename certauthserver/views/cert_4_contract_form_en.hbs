@@ -124,7 +124,9 @@
             <input type="hidden" name="organization_name" value="{{ .OrganizationName }}">
             <input type="hidden" name="organization_country" value="{{ .OrganizationCountry }}">
             <input type="hidden" name="organization_nif" value="{{ .OrganizationNif }}">
+            {{ if not $.representativeNameEditable }}
             <input type="hidden" name="representative_name" value="{{ .RepresentativeName }}">
+            {{ end }}
             <input type="hidden" name="representative_email" value="{{ .RepresentativeEmail }}">
 
             <h2 class="text-center"><strong>BY AND BETWEEN</strong></h2>
@@ -152,7 +154,12 @@
                     <option value="Mr.">Mr.</option>
                     <option value="Ms.">Ms.</option>
                 </select>
+                {{ if $.representativeNameEditable }}
+                <input type="text" name="representative_name" placeholder="Full name of the legal representative"
+                    class="contract-input" style="width: 300px;" required value="{{ .RepresentativeName }}">,
+                {{ else }}
                 <span class="contract-readonly">{{ .RepresentativeName }}</span>,
+                {{ end }}
                 with email address
                 <span class="contract-readonly">{{ .RepresentativeEmail }}</span>
                 (hereinafter, the "<strong>Adhering Entity</strong>").

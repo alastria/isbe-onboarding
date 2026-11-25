@@ -59,6 +59,55 @@
         </div>
         {{ end }}
 
+        {{ if .certificateNotApproved }}
+        <div class="ui red icon message">
+            <i class="exclamation triangle icon"></i>
+            <div class="content">
+                <div class="header">We cannot accept this certificate</div>
+                The certificate does not contain an organization identifier and is not authorised to register.
+                If your organization uses a non-qualified certificate, please contact support to request its
+                approval.
+            </div>
+        </div>
+        {{ else if .certificateNotValidNow }}
+        <div class="ui red icon message">
+            <i class="exclamation triangle icon"></i>
+            <div class="content">
+                <div class="header">Certificate not valid</div>
+                The certificate has expired or is not valid yet. Please use a valid certificate.
+            </div>
+        </div>
+        {{ else if .certificateUnreadable }}
+        <div class="ui red icon message">
+            <i class="exclamation triangle icon"></i>
+            <div class="content">
+                <div class="header">We did not receive a valid certificate</div>
+                Please select an organizational certificate in your browser and try again.
+            </div>
+        </div>
+        {{ end }}
+
+        {{ if .manualPolicyUnavailable }}
+        <div class="ui red icon message">
+            <i class="exclamation triangle icon"></i>
+            <div class="content">
+                <div class="header">Note</div>
+                This certificate has been manually approved, but we could not check its revocation status.
+                Please try again a bit later.
+            </div>
+        </div>
+        {{ else if .manualPolicyError }}
+        <div class="ui red icon message">
+            <i class="exclamation triangle icon"></i>
+            <div class="content">
+                <div class="header">Note</div>
+                This certificate is not a qualified eIDAS certificate and it does not comply with the trust policy
+                for manually approved certificates (trusted issuer, validity, key usage or revocation), so we cannot
+                accept it.
+            </div>
+        </div>
+        {{ end }}
+
         {{ if .serviceError }}
         <div class="ui red icon message">
             <i class="exclamation triangle icon"></i>
@@ -77,6 +126,7 @@
         </div>
         {{ end }}
 
+        {{ if not .hideCertificateData }}
         <div class="ui divider"></div>
 
         <div class="ui teal segment">
@@ -137,6 +187,8 @@
 
             </div>
         </div>
+
+        {{ end }}
 
     </div>
 

@@ -3,7 +3,6 @@ package certsec
 
 import (
 	"context"
-	"crypto/sha256"
 	"crypto/x509"
 	"embed"
 	"encoding/json"
@@ -397,6 +396,12 @@ func (s *CertSecServer) checkAdminAuthentication(c *fiber.Ctx) (*x509util.ELSINa
 		return nil, errl.Errorf("retrieving certificate: %w", err)
 	}
 
+	// The certificate whitelist is never consulted here: a manually approved certificate
+	// gets an organization identifier for onboarding, never administrative privileges.
+	if err := requireSubjectIdentifier(subject); err != nil {
+		return nil, err
+	}
+
 	// Check for admin
 	if !isAdmin(issuer, subject) {
 		return nil, errl.Errorf("Certificate serial number '%s' or issuer.organizationIdentifier '%s' is invalid", subject.SerialNumber, issuer.OrganizationIdentifier)
@@ -405,6 +410,18 @@ func (s *CertSecServer) checkAdminAuthentication(c *fiber.Ctx) (*x509util.ELSINa
 	return subject, nil
 }
 
+// requireSubjectIdentifier rejects certificates whose Subject has neither organizationIdentifier
+// (OID 2.5.4.97) nor serialNumber (OID 2.5.4.5, not the X.509 serial number of the certificate).
+// For onboarding it is evaluated after the whitelist, which may assign the organization identifier.
+func requireSubjectIdentifier(subject *x509util.ELSIName) error {
+	if subject.OrganizationIdentifier == "" && subject.SerialNumber == "" {
+		return errl.Errorf("Both organizationIdentifier and serialNumber are empty, and the certificate has not been approved: %w", models.ErrCertificateNotApproved)
+	}
+	return nil
+}
+
+// retrieveCertificate extracts the client certificate forwarded by the reverse proxy, parses it
+// and checks its validity period. It does not check the identity attributes of the Subject.
 func (s *CertSecServer) retrieveCertificate(c *fiber.Ctx) (
 	cert *x509.Certificate,
 	issuer *x509util.ELSIName,
@@ -420,13 +437,13 @@ func (s *CertSecServer) retrieveCertificate(c *fiber.Ctx) (
 		if certFromHeader != "" {
 			slog.Debug("Certificate data found in kube header", "header", kubeCertHeader, "cert_length", len(certFromHeader))
 		} else {
-			return nil, nil, nil, "", errl.Errorf("No certificate provided, neither in %s nor in %s", stdCertHeader, kubeCertHeader)
+			return nil, nil, nil, "", errl.Errorf("No certificate provided, neither in %s nor in %s: %w", stdCertHeader, kubeCertHeader, models.ErrCertificateUnreadable)
 		}
 	}
 
 	// Check that we received enough data
 	if len(certFromHeader) < 100 {
-		return nil, nil, nil, "", errl.Errorf("Certificate data too short: %d bytes", len(certFromHeader))
+		return nil, nil, nil, "", errl.Errorf("Certificate data too short: %d bytes: %w", len(certFromHeader), models.ErrCertificateUnreadable)
 	}
 
 	// Parse the certificate, which may come as DER or PEM format
@@ -439,37 +456,35 @@ func (s *CertSecServer) retrieveCertificate(c *fiber.Ctx) (
 		certFromHeaderDecoded, err := url.PathUnescape(certFromHeader)
 		if err != nil {
 			fmt.Printf("Failed to decode base64url certificate from header: %s\n", certFromHeader)
-			return nil, nil, nil, "", errl.Errorf("Failed to decode base64url certificate from header: %w", err)
+			return nil, nil, nil, "", errl.Errorf("Failed to decode base64url certificate from header: %w: %w", err, models.ErrCertificateUnreadable)
 		}
 
 		cert, issuer, subject, b64der, err = x509util.ParseCertificateFromPEM([]byte(certFromHeaderDecoded))
 		if err != nil {
 			fmt.Printf("Bad PEM certificate: %s\n", certFromHeader)
-			return nil, nil, nil, "", errl.Errorf("Failed to parse certificate from PEM: %w", err)
+			return nil, nil, nil, "", errl.Errorf("Failed to parse certificate from PEM: %w: %w", err, models.ErrCertificateUnreadable)
 		}
 	} else {
 		// Assume it is DER, so decode it directly
 		cert, issuer, subject, err = x509util.ParseEIDASCertB64Der(certFromHeader)
 		if err != nil {
 			fmt.Printf("Bad DER certificate: %s\n", certFromHeader)
-			return nil, nil, nil, "", errl.Errorf("Failed to parse certificate: %w", err)
+			return nil, nil, nil, "", errl.Errorf("Failed to parse certificate: %w: %w", err, models.ErrCertificateUnreadable)
 		}
 		b64der = certFromHeader
 	}
 
-	// For testing we accept personal certificates, but we do not accept that both
-	// the organizationIdentifier and the serialNumber are empty.
-	if subject.OrganizationIdentifier == "" && subject.SerialNumber == "" {
-		return nil, nil, nil, "", errl.Errorf("Both organizationIdentifier and serialNumber are empty")
-	}
+	// The identity requirements (organizationIdentifier or Subject serialNumber) are checked
+	// by the callers, after the whitelist of manually approved certificates has been consulted
+	// (see requireSubjectIdentifier).
 
 	// Check certificate expiration
 	now := time.Now()
 	if now.Before(cert.NotBefore) {
-		return nil, nil, nil, "", errl.Errorf("Certificate not yet valid, not_before: %s", cert.NotBefore.Format(time.RFC3339))
+		return nil, nil, nil, "", errl.Errorf("Certificate not yet valid, not_before: %s: %w", cert.NotBefore.Format(time.RFC3339), models.ErrCertificateNotValidNow)
 	}
 	if now.After(cert.NotAfter) {
-		return nil, nil, nil, "", errl.Errorf("Certificate expired not_after: %s", cert.NotAfter.Format(time.RFC3339))
+		return nil, nil, nil, "", errl.Errorf("Certificate expired not_after: %s: %w", cert.NotAfter.Format(time.RFC3339), models.ErrCertificateNotValidNow)
 	}
 
 	return cert, issuer, subject, b64der, nil
@@ -507,6 +522,11 @@ func (s *CertSecServer) handleCertificateAuth(c *fiber.Ctx) error {
 
 	slog.Info("Certificate authentication requested", "auth_code", authCode)
 
+	// A new certificate authentication invalidates any previous trust decision for this
+	// process: CertAuth must evaluate the certificate received now.
+	authProcess.TrustedCertificateSHA256 = ""
+	authProcess.CertificateFlowCompleted = false
+
 	sendBackError := func(err error) error {
 		// Redirect back to certauth with an error
 		authProcess.ErrorInProcess = err
@@ -522,8 +542,10 @@ func (s *CertSecServer) handleCertificateAuth(c *fiber.Ctx) error {
 
 	// Certificates without organizationIdentifier can be manually approved to act on behalf of an organization.
 	// In that case we set the approved identifier, so the rest of the flow treats it as an organizational certificate.
+	// The approval is bound to the exact certificate: the SHA-256 of its DER encoding.
+	// CertAuth applies the trust policy for manually approved certificates afterwards.
 	if subject.OrganizationIdentifier == "" {
-		fingerprint := fmt.Sprintf("%x", sha256.Sum256(cert.Raw))
+		fingerprint := models.CertificateFingerprint(cert)
 		approvedID, err := s.db.GetApprovedOrganizationIdentifier(fingerprint)
 		if err != nil {
 			return sendBackError(errl.Errorf("checking approved certificate: %w", err))
@@ -534,6 +556,11 @@ func (s *CertSecServer) handleCertificateAuth(c *fiber.Ctx) error {
 		} else {
 			slog.Info("Certificate without organization identifier", "auth_code", authCode, "certificate_sha256", fingerprint, "organization", subject.Organization)
 		}
+	}
+
+	// Certificates without organizationIdentifier nor Subject serialNumber are only accepted when approved
+	if err := requireSubjectIdentifier(subject); err != nil {
+		return sendBackError(err)
 	}
 
 	// Determine certificate type

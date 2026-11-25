@@ -204,8 +204,8 @@ func (v *Verifier) verifyToken(ctx context.Context, token []byte, p verifyParams
 
 	revocationChecked := false
 	if p.checkRevocation && v.revocation != nil {
-		if err := v.revocation.check(ctx, chain); err != nil {
-			return nil, err
+		if err := v.revocation.Check(ctx, chain); err != nil {
+			return nil, verificationErrorf(ReasonRevocation, "%v", err)
 		}
 		// A chain made only of the trust anchor has nothing to check.
 		revocationChecked = len(chain) > 1

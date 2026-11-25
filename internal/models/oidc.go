@@ -55,6 +55,24 @@ type AuthProcess struct {
 	CredentialData        map[string]any   `json:"credential_data,omitempty"`
 	FinishedWalletAuth    bool             `json:"finished_wallet_auth,omitempty"`
 	ErrorInProcess        error            `json:"-"`
+
+	// TrustedCertificateSHA256 is the fingerprint of the certificate that CertAuth accepted
+	// under a trust policy (eIDAS, manual approval or the non-production demo mode). The later
+	// steps of the certificate flow and the token endpoint require it to match CertificateData.
+	// CertSec clears it whenever it receives a certificate.
+	TrustedCertificateSHA256 string `json:"-"`
+	// CertificateFlowCompleted is set when the certificate flow ends: the organization was
+	// already registered, its contract was accepted, or an SSO session was reused. The token
+	// endpoint only issues tokens for certificate authentications that completed the flow.
+	CertificateFlowCompleted bool `json:"-"`
+}
+
+// CertificateAccepted reports whether CertAuth accepted the certificate currently held in
+// the authentication process under a trust policy.
+func (a *AuthProcess) CertificateAccepted() bool {
+	return a.CertificateData != nil && a.CertificateData.Certificate != nil &&
+		a.TrustedCertificateSHA256 != "" &&
+		CertificateFingerprint(a.CertificateData.Certificate) == a.TrustedCertificateSHA256
 }
 
 // SSOSession represents a single sign-on session, stored in-memory in the server

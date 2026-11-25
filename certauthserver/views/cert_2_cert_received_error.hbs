@@ -59,6 +59,55 @@
         </div>
         {{ end }}
 
+        {{ if .certificateNotApproved }}
+        <div class="ui red icon message">
+            <i class="exclamation triangle icon"></i>
+            <div class="content">
+                <div class="header">No podemos aceptar este certificado</div>
+                El certificado no contiene un identificador de organización y no está autorizado para darse de
+                alta. Si su organización utiliza un certificado no cualificado, contacte con soporte para
+                solicitar su aprobación.
+            </div>
+        </div>
+        {{ else if .certificateNotValidNow }}
+        <div class="ui red icon message">
+            <i class="exclamation triangle icon"></i>
+            <div class="content">
+                <div class="header">Certificado no vigente</div>
+                El certificado ha caducado o todavía no es válido. Por favor, utilice un certificado vigente.
+            </div>
+        </div>
+        {{ else if .certificateUnreadable }}
+        <div class="ui red icon message">
+            <i class="exclamation triangle icon"></i>
+            <div class="content">
+                <div class="header">No hemos recibido un certificado válido</div>
+                Seleccione un certificado de organización en su navegador e inténtelo de nuevo.
+            </div>
+        </div>
+        {{ end }}
+
+        {{ if .manualPolicyUnavailable }}
+        <div class="ui red icon message">
+            <i class="exclamation triangle icon"></i>
+            <div class="content">
+                <div class="header">Nota</div>
+                Este certificado ha sido aprobado manualmente, pero no hemos podido comprobar su estado de
+                revocación. Por favor, pruebe un poco más tarde.
+            </div>
+        </div>
+        {{ else if .manualPolicyError }}
+        <div class="ui red icon message">
+            <i class="exclamation triangle icon"></i>
+            <div class="content">
+                <div class="header">Nota</div>
+                Este certificado no es un certificado cualificado eIDAS y no cumple la política de confianza para
+                certificados aprobados manualmente (emisor de confianza, vigencia, uso de clave o revocación), por
+                lo que no podemos aceptarlo.
+            </div>
+        </div>
+        {{ end }}
+
         {{ if .serviceError }}
         <div class="ui red icon message">
             <i class="exclamation triangle icon"></i>
@@ -77,6 +126,7 @@
         </div>
         {{ end }}
 
+        {{ if not .hideCertificateData }}
         <div class="ui divider"></div>
 
         <div class="ui teal segment">
@@ -137,6 +187,8 @@
 
             </div>
         </div>
+
+        {{ end }}
 
     </div>
 

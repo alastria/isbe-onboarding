@@ -200,6 +200,8 @@ func (s *CertAuthServer) Authorization(c *fiber.Ctx) error {
 		authProcess.CertificateData = ssoSession.CertificateData
 		authProcess.Email = ssoSession.Email
 		authProcess.Powers = ssoSession.Powers
+		authProcess.TrustedCertificateSHA256 = models.CertificateFingerprint(ssoSession.CertificateData.Certificate)
+		authProcess.CertificateFlowCompleted = true
 
 		// And redirect back to the caller
 		redirectURL := fmt.Sprintf("%s?code=%s", authProcess.RedirectURI, authProcess.Code)
@@ -288,6 +290,18 @@ func (s *CertAuthServer) APITokenExchange(c *fiber.Ctx) error {
 	// Validate received auth code against the stored one
 	if authProcess.ClientID != tokenReq.ClientID {
 		return errl.Errorf("auth code client mismatch")
+	}
+
+	// Tokens for a certificate authentication are only issued when CertAuth accepted the
+	// certificate under a trust policy and the flow completed (registration, already
+	// registered organization or SSO).
+	if authProcess.CertificateData != nil && (!authProcess.CertificateAccepted() || !authProcess.CertificateFlowCompleted) {
+		slog.Warn("Token requested for a certificate authentication that was not accepted or not completed",
+			"auth_code", tokenReq.Code, "certificate_accepted", authProcess.CertificateAccepted(), "flow_completed", authProcess.CertificateFlowCompleted)
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":             "invalid_grant",
+			"error_description": "the authentication was not completed",
+		})
 	}
 
 	// Get the registered relying party

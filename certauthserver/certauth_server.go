@@ -14,6 +14,7 @@ import (
 
 	"github.com/alastria/isbe-onboarding/database"
 	"github.com/alastria/isbe-onboarding/internal/cache"
+	"github.com/alastria/isbe-onboarding/internal/certpolicy"
 	"github.com/alastria/isbe-onboarding/internal/email"
 	"github.com/alastria/isbe-onboarding/internal/errl"
 	"github.com/alastria/isbe-onboarding/internal/html"
@@ -56,6 +57,10 @@ type ConfigCertAuth struct {
 	// The URL for the Digital Signature Services. We use it now for verification of certificates only.
 	EUDSSURL string
 
+	// PEM bundle (roots and intermediates) of the trust policy for manually approved
+	// certificates that are not qualified eIDAS certificates. Empty: policy disabled.
+	ManualApprovalCAFile string
+
 	// The URL for the TM Forum server
 	TMFServerURL string
 
@@ -87,6 +92,12 @@ type CertAuthServer struct {
 
 	// The URL for the Digital Signature Services. We use it now for verification of certificates only.
 	euDSSURL string
+
+	// The eIDAS validation through EU DSS (VerifyCertificate, replaceable in tests)
+	verifyEIDAS func(certificateDER string, url string) ([]byte, error, error)
+
+	// The trust policy for manually approved non-eIDAS certificates; nil when not configured
+	manualApproval *certpolicy.Validator
 
 	// The database service
 	db *database.Database
@@ -204,6 +215,20 @@ func NewCertAuth(
 		return nil, errl.Errorf("failed to create tmfservice: %v", err)
 	}
 
+	// The trust policy for manually approved certificates, only when explicitly configured
+	var manualApproval *certpolicy.Validator
+	if cfg.ManualApprovalCAFile != "" {
+		manualApproval, err = certpolicy.NewValidatorFromFile(cfg.ManualApprovalCAFile)
+		if err != nil {
+			return nil, errl.Errorf("failed to initialize the manual approval trust policy: %w", err)
+		}
+		for _, ca := range manualApproval.CAs() {
+			slog.Info("Manual approval CA", "role", ca.Role, "subject", ca.Subject, "sha256", ca.SHA256, "not_after", ca.NotAfter)
+		}
+	} else {
+		slog.Info("Manual approval trust policy not configured: in isbe-pro, manually approved certificates are only accepted if they pass the eIDAS validation", "profile", cfg.Profile)
+	}
+
 	// Put everything together in a server
 	s := &CertAuthServer{
 		profile:          cfg.Profile,
@@ -213,6 +238,8 @@ func NewCertAuth(
 		managementURL:    cfg.ManagementURL,
 		managementAPIKey: cfg.ManagementAPIKey,
 		euDSSURL:         cfg.EUDSSURL,
+		verifyEIDAS:      VerifyCertificate,
+		manualApproval:   manualApproval,
 		httpServer:       httpServer,
 		db:               db,
 		jwtService:       jwtService,

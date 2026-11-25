@@ -26,6 +26,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/alastria/isbe-onboarding/internal/crlcheck"
 	"io"
 	"log/slog"
 	"math/big"
@@ -85,7 +86,7 @@ type Verifier struct {
 	roots         *x509.CertPool
 	intermediates []*x509.Certificate
 	policy        asn1.ObjectIdentifier
-	revocation    *crlChecker
+	revocation    *crlcheck.Checker
 	now           func() time.Time
 }
 
@@ -121,7 +122,7 @@ func newVerifier(ctx context.Context, cfg *TSAConfig, o options) (*Verifier, err
 		}
 	}
 	if cfg.RevocationCheck == RevocationCRL {
-		v.revocation = newCRLChecker(o.httpClient, o.now)
+		v.revocation = crlcheck.New(o.httpClient, o.now)
 	}
 	return v, nil
 }
