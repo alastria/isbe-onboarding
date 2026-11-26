@@ -11,7 +11,8 @@ y el proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 - Aprobación manual de certificados (CS-407): los certificados de `approved_certificates` se aceptan
   para la organización aprobada como alternativa a la validación eIDAS, sin consultar EU DSS, en
-  todos los perfiles. Nunca se marcan como eIDAS.
+  todos los perfiles. Nunca se marcan como eIDAS. Antes de desplegar hay que revisar y volver a
+  aprobar las filas existentes de `approved_certificates` (ver README).
 - El formulario del contrato pide el nombre del representante cuando el certificado no lo incluye.
 
 ### Cambiado

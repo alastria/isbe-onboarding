@@ -396,6 +396,16 @@
             var contract_base = contract_form.elements["contract_base"];
             var contract_basic = contract_form.elements["contract_basic"];
             var contract_developer = contract_form.elements["contract_developer"];
+            var representative_name = contract_form.elements["representative_name"];
+
+            // form.submit() skips the HTML validation of the required fields
+            if (!representative_name.value.trim()) {
+                alert("You must enter the full name of the legal representative");
+                if (representative_name.type === "text") {
+                    representative_name.focus();
+                }
+                return;
+            }
 
             if (!contract_base.checked) {
                 alert("You must accept the stipulations of the master agreement");

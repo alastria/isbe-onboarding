@@ -1,51 +1,93 @@
 package models
 
 import (
+	"errors"
 	"sync"
 	"testing"
 )
 
-// The certificate steps run in concurrent requests that share the AuthProcess. Run with -race.
-func TestCertificateAcceptanceIsBoundToTheCertificate(t *testing.T) {
+// The requests of an authentication run concurrently and share the AuthProcess. Run with -race.
+func TestAuthenticationStateUnderConcurrency(t *testing.T) {
 	validated, other := &CertificateData{}, &CertificateData{}
+	wallet := map[string]any{"wallet": true}
 
 	for range 200 {
 		p := &AuthProcess{}
 		p.SetCertificate(validated)
 
 		var wg sync.WaitGroup
-		wg.Add(3)
+		wg.Add(4)
 		go func() { // CertSec receives another certificate
 			defer wg.Done()
+			p.StartCertificateAttempt()
 			p.SetCertificate(other)
 		}()
-		go func() { // CertAuth accepts the one it validated and completes the flow
+		go func() { // CertAuth accepts the certificate it validated and completes the flow
 			defer wg.Done()
 			if p.AcceptCertificate(validated) {
-				p.CompleteCertificateFlow(validated)
+				p.CompleteCertificateFlow(validated, "user@example.com", "powers")
 			}
 		}()
-		go func() { // the token endpoint and the later steps
+		go func() { // the wallet completes with the same code
 			defer wg.Done()
-			if cd := p.CompletedCertificate(); cd != nil && cd != validated {
-				t.Errorf("completed certificate is not the validated one")
+			p.CompleteWalletAuthentication(wallet)
+		}()
+		go func() { // the token endpoint and the steps of the certificate flow
+			defer wg.Done()
+			if done := p.Completed(); done != nil && done.Certificate != nil && done.Certificate != validated {
+				t.Errorf("tokens for a certificate that was not validated")
 			}
 			if cd := p.AcceptedCertificate(); cd != nil && cd != validated {
-				t.Errorf("accepted certificate is not the validated one")
+				t.Errorf("steps for a certificate that was not validated")
 			}
+			p.WalletAuthFinished()
 		}()
 		wg.Wait()
 
-		// Once the other certificate is set, nothing is accepted any more
-		if p.Certificate() == other && (p.AcceptedCertificate() != nil || p.CompletedCertificate() != nil) {
-			t.Fatalf("the other certificate is accepted without validation")
+		// Whatever the order, the completed authentication is exactly one validated method
+		if done := p.Completed(); done != nil {
+			if (done.Certificate == nil) == (done.Credential == nil) || (done.Certificate != nil && done.Certificate != validated) {
+				t.Fatalf("unexpected completed authentication: %+v", done)
+			}
 		}
 	}
+}
 
-	// Accepting a certificate that is no longer the current one fails
+func TestAuthenticationStateTransitions(t *testing.T) {
+	validated, other := &CertificateData{}, &CertificateData{}
+
+	// Only the current certificate can be accepted and completed
 	p := &AuthProcess{}
 	p.SetCertificate(other)
-	if p.AcceptCertificate(validated) || p.CompleteCertificateFlow(other) {
+	if p.AcceptCertificate(validated) || p.CompleteCertificateFlow(other, "", "") || p.Completed() != nil {
 		t.Fatalf("accepted or completed without validation")
+	}
+
+	// Once completed, the steps of the certificate flow are closed and the tokens carry the
+	// email and powers recorded at completion
+	p.SetCertificate(validated)
+	p.AcceptCertificate(validated)
+	p.CompleteCertificateFlow(validated, "user@example.com", "powers")
+	if p.AcceptedCertificate() != nil {
+		t.Fatalf("the steps of the certificate flow are still open after completion")
+	}
+	if done := p.Completed(); done.Certificate != validated || done.Email != "user@example.com" || done.Powers != "powers" {
+		t.Fatalf("unexpected completed authentication: %+v", done)
+	}
+
+	// The wallet replaces the certificate
+	p.CompleteWalletAuthentication(map[string]any{"wallet": true})
+	if done := p.Completed(); done.Certificate != nil || done.Credential == nil || !p.WalletAuthFinished() {
+		t.Fatalf("wallet authentication not recorded: %+v", done)
+	}
+	if cd, _ := p.CertificateResult(); cd != nil {
+		t.Fatalf("certificate kept after the wallet authentication")
+	}
+
+	// A new certificate attempt starts clean: no certificate, error, wallet or completion
+	p.FailCertificateAttempt(errors.New("rejected"))
+	p.StartCertificateAttempt()
+	if cd, err := p.CertificateResult(); cd != nil || err != nil || p.Completed() != nil || p.WalletAuthFinished() {
+		t.Fatalf("state kept after a new certificate attempt")
 	}
 }

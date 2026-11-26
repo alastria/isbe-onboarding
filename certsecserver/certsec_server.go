@@ -540,12 +540,13 @@ func (s *CertSecServer) handleCertificateAuth(c *fiber.Ctx) error {
 
 	slog.Info("Certificate authentication requested", "auth_code", authCode)
 
-	// Whatever CertAuth accepted before, a new certificate has to be validated again
-	authProcess.SetCertificate(nil)
+	// A new attempt: the previous certificate, its error, its acceptance and any completed
+	// authentication no longer apply
+	authProcess.StartCertificateAttempt()
 
 	sendBackError := func(err error) error {
 		// Redirect back to certauth with an error
-		authProcess.ErrorInProcess = err
+		authProcess.FailCertificateAttempt(err)
 		redirectURL := s.CertAuthURL + s.CertificateBackEndpoint + "?code=" + authCode + "&error=true"
 		return c.Status(fiber.StatusFound).Redirect(redirectURL)
 	}

@@ -73,6 +73,21 @@ header. The reverse proxy must require the client certificate in the TLS handsha
 possession of the private key), always set that header from the handshake and never forward a
 value sent by the client, and the CertSec port must only be reachable through it.
 
+**Before deploying (mandatory).** Before CS-407, a row only assigned an organization identifier to
+a certificate without one, and the certificate was still validated by EU DSS. With CS-407 every row
+is trusted without EU DSS. Review every existing row and, for each certificate:
+
+- if ISBE accepts to trust it manually (and to revoke it manually), approve it again, recording it in
+  the comment:
+  `UPDATE approved_certificates SET comment = 'Re-approved for CS-407 by <who> on <date>: <how it was verified>' WHERE certificate_sha256 = '<sha256>';`
+- otherwise delete the row. A certificate with its own `organizationIdentifier` then keeps the eIDAS
+  validation as before. A certificate without it can no longer authenticate: keeping the eIDAS
+  validation together with an assigned organization identifier is not supported.
+
+```sql
+SELECT certificate_sha256, organization_identifier, comment, created_at FROM approved_certificates;
+```
+
 **Approving a certificate**, after verifying the identity of the organization out of band
 (`certificate_sha256` is the SHA-256 of the DER certificate in lowercase hex, e.g.
 `openssl x509 -in cert.pem -outform DER | sha256sum`):
@@ -90,10 +105,13 @@ the organization:
 DELETE FROM approved_certificates WHERE certificate_sha256 = '<sha256>';
 ```
 
-From then on (and also once the certificate expires) it cannot authenticate, its SSO session is
-discarded at its next use, and an authentication process in progress cannot continue nor obtain
-tokens. Tokens already issued stay valid until they expire, and the registration of the
-organization is not removed.
+From then on (and also once the certificate expires) it can no longer authenticate through the
+manual approval, its SSO session is discarded at its next use, and an authentication process in
+progress cannot continue nor obtain tokens. Withdrawing the approval only removes the manual trust:
+a certificate that passes the eIDAS validation (with its own `organizationIdentifier`) can still
+authenticate through eIDAS, as any other qualified certificate; its revocation is then up to its
+issuer. Tokens already issued stay valid until they expire, and the registration of the organization
+is not removed.
 
 ## Observability
 

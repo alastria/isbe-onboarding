@@ -10,6 +10,7 @@ import (
 	"database/sql"
 	"encoding/asn1"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math/big"
@@ -18,6 +19,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -165,7 +167,7 @@ func (e *testEnv) newAuthProcess(cd *models.CertificateData, accepted, completed
 		p.AcceptCertificate(cd)
 	}
 	if completed {
-		p.CompleteCertificateFlow(cd)
+		p.CompleteCertificateFlow(cd, "user@example.com", "")
 	}
 	e.s.authprocCache.Set(code, p, time.Minute)
 	return p
@@ -195,50 +197,42 @@ func (e *testEnv) certificateBack(t *testing.T, cd *models.CertificateData) (*mo
 	return p, body
 }
 
-func TestManuallyApprovedCertificateDoesNotDependOnEUDSS(t *testing.T) {
-	for _, profile := range allProfiles {
-		t.Run(string(profile), func(t *testing.T) {
-			dssURL, calls := fakeDSS(t, "") // EU DSS is down
-			e := newTestEnv(t, profile, dssURL)
-			p, body := e.certificateBack(t, newCertData(t, testOrgID, true))
-			if calls.Load() != 0 {
-				t.Fatalf("EU DSS called %d times for a manually approved certificate", calls.Load())
-			}
-			if !(p.AcceptedCertificate() != nil) || p.CertificateData.EIDASCertificate {
-				t.Fatalf("accepted=%v eidas=%v, want accepted and not eIDAS", (p.AcceptedCertificate() != nil), p.CertificateData.EIDASCertificate)
-			}
-			if !strings.Contains(body, "aprobado manualmente") {
-				t.Fatalf("the page does not say that the certificate was manually approved")
-			}
-		})
+func TestCertificateValidationInEveryProfile(t *testing.T) {
+	cases := []struct {
+		name     string
+		approved bool   // manually approved by CertSec
+		dss      string // EU DSS indication; empty: EU DSS is down
+		dssCalls int32
+		accepted func(types.Profile) bool
+		page     string // what the page says about the certificate
+	}{
+		{"approved, EU DSS down", true, "", 0, func(types.Profile) bool { return true }, "aprobado manualmente"},
+		{"eIDAS", false, "PASSED", 1, func(types.Profile) bool { return true }, ""},
+		// Rejected in production, accepted in test/demo mode elsewhere, as before
+		{"not approved, not eIDAS", false, "FAILED", 1, func(p types.Profile) bool { return p != types.PROFILE_ISBE_PRO }, "no es válido según las normas eIDAS"},
 	}
-}
-
-func TestEIDASCertificateUsualBehaviour(t *testing.T) {
-	for _, profile := range allProfiles {
-		t.Run(string(profile), func(t *testing.T) {
-			dssURL, calls := fakeDSS(t, "PASSED")
-			e := newTestEnv(t, profile, dssURL)
-			p, _ := e.certificateBack(t, newCertData(t, "VATES-B00000000", false))
-			if calls.Load() != 1 || !(p.AcceptedCertificate() != nil) || !p.CertificateData.EIDASCertificate {
-				t.Fatalf("dss_calls=%d accepted=%v eidas=%v", calls.Load(), (p.AcceptedCertificate() != nil), p.CertificateData.EIDASCertificate)
-			}
-		})
-	}
-}
-
-func TestNotApprovedNonEIDASCertificateUsualBehaviour(t *testing.T) {
-	for _, profile := range allProfiles {
-		t.Run(string(profile), func(t *testing.T) {
-			dssURL, calls := fakeDSS(t, "FAILED")
-			e := newTestEnv(t, profile, dssURL)
-			p, _ := e.certificateBack(t, newCertData(t, "VATES-B00000000", false))
-			// Rejected in production, accepted in test/demo mode elsewhere, as before
-			wantAccepted := profile != types.PROFILE_ISBE_PRO
-			if calls.Load() != 1 || (p.AcceptedCertificate() != nil) != wantAccepted || p.CertificateData.EIDASCertificate {
-				t.Fatalf("dss_calls=%d accepted=%v eidas=%v", calls.Load(), (p.AcceptedCertificate() != nil), p.CertificateData.EIDASCertificate)
-			}
-		})
+	for _, tc := range cases {
+		for _, profile := range allProfiles {
+			t.Run(tc.name+"/"+string(profile), func(t *testing.T) {
+				dssURL, calls := fakeDSS(t, tc.dss)
+				e := newTestEnv(t, profile, dssURL)
+				orgID := "VATES-B00000000"
+				if tc.approved {
+					orgID = testOrgID
+				}
+				cd := newCertData(t, orgID, tc.approved)
+				p, body := e.certificateBack(t, cd)
+				accepted := p.AcceptedCertificate() != nil
+				if calls.Load() != tc.dssCalls || accepted != tc.accepted(profile) || cd.EIDASCertificate {
+					t.Fatalf("dss_calls=%d accepted=%v shared eidas flag=%v", calls.Load(), accepted, cd.EIDASCertificate)
+				}
+				for _, text := range []string{"aprobado manualmente", "no es válido según las normas eIDAS"} {
+					if accepted && strings.Contains(body, text) != (text == tc.page) {
+						t.Fatalf("page and %q: want %v", text, text == tc.page)
+					}
+				}
+			})
+		}
 	}
 }
 
@@ -305,7 +299,7 @@ func (e *testEnv) authorizeWithSSO(t *testing.T, cd *models.CertificateData) boo
 	t.Helper()
 	sessionID := fmt.Sprintf("sso-%d", time.Now().UnixNano())
 	e.s.ssoCache.Set(sessionID, &models.SSOSession{SessionID: sessionID, CertificateData: cd, Email: "user@example.com"}, time.Minute)
-	cookie, err := e.s.generateSSOCookie(sessionID, cd)
+	cookie, err := e.s.generateSSOCookie(sessionID, cd, "user@example.com")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -413,5 +407,121 @@ func TestSSOSessionOfExpiredApprovedCertificateNotReused(t *testing.T) {
 	cd.Certificate.NotAfter = time.Now().Add(-time.Minute) // expired after the session was opened
 	if e.authorizeWithSSO(t, cd) {
 		t.Fatalf("SSO session of an expired approved certificate reused")
+	}
+}
+
+// testCredential is a minimal wallet credential for the tokens.
+var testCredential = map[string]any{"credentialSubject": map[string]any{"mandate": map[string]any{
+	"mandator": map[string]any{"organizationIdentifier": "VATES-W00000000"},
+	"mandatee": map[string]any{"email": "wallet@example.com"},
+}}}
+
+// exchange calls the token endpoint and returns the status and the claims of the ID token.
+func (e *testEnv) exchange(t *testing.T, p *models.AuthProcess) (int, string) {
+	t.Helper()
+	resp, body := e.do(t, postForm(token_endpoint, url.Values{"grant_type": {"authorization_code"}, "code": {p.Code}, "client_id": {testClientID}}))
+	var tokens map[string]any
+	if resp.StatusCode != fiber.StatusOK || json.Unmarshal([]byte(body), &tokens) != nil {
+		return resp.StatusCode, ""
+	}
+	claims := ""
+	for _, k := range []string{"id_token", "access_token"} {
+		parts := strings.Split(fmt.Sprint(tokens[k]), ".")
+		if len(parts) == 3 {
+			payload, _ := base64.RawURLEncoding.DecodeString(parts[1])
+			claims += string(payload)
+		}
+	}
+	return resp.StatusCode, claims
+}
+
+func TestTokensFollowTheCompletedMethod(t *testing.T) {
+	e := newTestEnv(t, types.PROFILE_ISBE_PRO, "")
+	cd := newCertData(t, testOrgID, true)
+	e.approve(t, cd)
+
+	// A certificate attempt (accepted or not), then the wallet: wallet tokens
+	for _, accepted := range []bool{false, true} {
+		p := e.newAuthProcess(cd, accepted, false)
+		p.CompleteWalletAuthentication(testCredential)
+		status, claims := e.exchange(t, p)
+		if status != fiber.StatusOK || !strings.Contains(claims, "VATES-W00000000") || strings.Contains(claims, testOrgID) {
+			t.Fatalf("certificate then wallet (accepted=%v): status %d claims %s", accepted, status, claims)
+		}
+	}
+
+	// The wallet, then a certificate attempt that does not complete: no tokens
+	p := e.newAuthProcess(nil, false, false)
+	p.CompleteWalletAuthentication(testCredential)
+	p.StartCertificateAttempt()
+	p.SetCertificate(cd)
+	if status, _ := e.exchange(t, p); status != fiber.StatusBadRequest {
+		t.Fatalf("wallet then unfinished certificate: status %d, want 400", status)
+	}
+
+	// The wallet, then a certificate flow that completes: certificate tokens
+	p.AcceptCertificate(cd)
+	p.CompleteCertificateFlow(cd, "user@example.com", "")
+	if status, claims := e.exchange(t, p); status != fiber.StatusOK || !strings.Contains(claims, testOrgID) || strings.Contains(claims, "VATES-W00000000") {
+		t.Fatalf("wallet then certificate: status %d claims %s", status, claims)
+	}
+
+	// Nothing completed: no tokens
+	if status, _ := e.exchange(t, e.newAuthProcess(nil, false, false)); status != fiber.StatusBadRequest {
+		t.Fatalf("nothing completed: status %d, want 400", status)
+	}
+}
+
+func TestStepsClosedAfterCompletion(t *testing.T) {
+	e := newTestEnv(t, types.PROFILE_ISBE_PRO, "")
+	cd := newCertData(t, testOrgID, true)
+	e.approve(t, cd)
+	p := e.newAuthProcess(cd, true, true) // completed with user@example.com
+
+	e.do(t, postForm(sendEmailVerificationEndpoint, url.Values{"auth_code": {p.Code}, "email": {"other@example.com"}}))
+	if status, claims := e.exchange(t, p); status != fiber.StatusOK || !strings.Contains(claims, "user@example.com") || strings.Contains(claims, "other@example.com") {
+		t.Fatalf("status %d claims %s", status, claims)
+	}
+}
+
+func TestRepresentativeNameRequiredBeforeTheContract(t *testing.T) {
+	e := newTestEnv(t, types.PROFILE_ISBE_PRO, "")
+	cd := newCertData(t, testOrgID, true)
+	e.approve(t, cd)
+	for _, endpoint := range []string{presentContractForAcceptanceEndpoint, contractAcceptedEndpoint} {
+		p := e.newAuthProcess(cd, true, false)
+		p.Email = "user@example.com"
+		resp, body := e.do(t, postForm(endpoint, url.Values{"auth_code": {p.Code}, "representative_email": {p.Email}, "representative_name": {"   "}}))
+		if resp.StatusCode != fiber.StatusBadRequest || !strings.Contains(body, "Missing representative name") {
+			t.Fatalf("%s: status %d: %s", endpoint, resp.StatusCode, body)
+		}
+	}
+}
+
+// The requests of one authentication run concurrently: CertSec receiving another certificate,
+// the wallet completing, CertAuth validating, the contract step and the token endpoint. Run with
+// -race: tokens are only ever issued for a validated certificate or the wallet credential.
+func TestConcurrentRequestsOfOneAuthentication(t *testing.T) {
+	e := newTestEnv(t, types.PROFILE_ISBE_PRO, "")
+	validated, other := newCertData(t, testOrgID, true), newCertData(t, "NTRNL-87654321", true)
+	e.approve(t, validated)
+
+	for range 20 {
+		p := e.newAuthProcess(validated, false, false)
+		p.Email = "user@example.com"
+		var wg sync.WaitGroup
+		run := func(f func()) { wg.Add(1); go func() { defer wg.Done(); f() }() }
+		run(func() { e.do(t, httptest.NewRequest("GET", CertificateBackEndpoint+"?code="+p.Code, nil)) })
+		run(func() { p.StartCertificateAttempt(); p.SetCertificate(other) })
+		run(func() { p.CompleteWalletAuthentication(testCredential) })
+		run(func() {
+			e.do(t, postForm(presentContractForAcceptanceEndpoint, url.Values{"auth_code": {p.Code}, "representative_email": {p.Email}, "representative_name": {"Jane Doe"}}))
+		})
+		run(func() {
+			if status, claims := e.exchange(t, p); status == fiber.StatusOK && strings.Contains(claims, "NTRNL-87654321") {
+				t.Errorf("tokens for a certificate that was not validated")
+			}
+		})
+		wg.Wait()
 	}
 }

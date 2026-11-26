@@ -12,6 +12,7 @@ import (
 	"database/sql"
 	"encoding/asn1"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -119,20 +120,25 @@ func (e *testEnv) approve(t *testing.T, fingerprint, orgID string) {
 	}
 }
 
-// authenticate presents the certificate in the given header to /auth and returns the
-// authentication process as CertAuth will find it. The process starts with a certificate
-// already accepted and completed, to check that CertSec always resets it.
+// authenticate presents the certificate in the given header to /auth with a new authentication
+// process and returns it as CertAuth will find it. The process starts with a previous certificate
+// accepted and completed and a previous error, to check that CertSec always resets them.
 func (e *testEnv) authenticate(t *testing.T, header, b64der string) *models.AuthProcess {
 	t.Helper()
-	code := fmt.Sprintf("code-%d", time.Now().UnixNano())
-	authProcess := &models.AuthProcess{Code: code}
+	authProcess := &models.AuthProcess{Code: fmt.Sprintf("code-%d", time.Now().UnixNano())}
 	previous := &models.CertificateData{}
 	authProcess.SetCertificate(previous)
 	authProcess.AcceptCertificate(previous)
-	authProcess.CompleteCertificateFlow(previous)
-	e.cache.Set(code, authProcess, time.Minute)
+	authProcess.CompleteCertificateFlow(previous, "", "")
+	authProcess.FailCertificateAttempt(errors.New("previous attempt"))
+	e.cache.Set(authProcess.Code, authProcess, time.Minute)
+	return e.present(t, authProcess, header, b64der)
+}
 
-	req := httptest.NewRequest("GET", "/auth?code="+code, nil)
+// present presents the certificate to /auth for an existing authentication process.
+func (e *testEnv) present(t *testing.T, authProcess *models.AuthProcess, header, b64der string) *models.AuthProcess {
+	t.Helper()
+	req := httptest.NewRequest("GET", "/auth?code="+authProcess.Code, nil)
 	req.Header.Set(header, b64der)
 	resp, err := e.s.app.Test(req, -1)
 	if err != nil {
@@ -141,8 +147,9 @@ func (e *testEnv) authenticate(t *testing.T, header, b64der string) *models.Auth
 	if resp.StatusCode != 302 {
 		t.Fatalf("status %d, want 302", resp.StatusCode)
 	}
-	if authProcess.AcceptedCertificate() != nil || authProcess.CompletedCertificate() != nil {
-		t.Fatalf("CertSec must reset the acceptance of the previous certificate")
+	if _, err := authProcess.CertificateResult(); authProcess.AcceptedCertificate() != nil || authProcess.Completed() != nil ||
+		(err != nil && strings.Contains(err.Error(), "previous attempt")) {
+		t.Fatalf("CertSec must reset the previous certificate, error and completion")
 	}
 	return authProcess
 }
@@ -150,10 +157,10 @@ func (e *testEnv) authenticate(t *testing.T, header, b64der string) *models.Auth
 // result summarises what CertSec handed over: the rejection, or the organization and whether
 // the certificate is manually approved.
 func result(p *models.AuthProcess) string {
-	if p.ErrorInProcess != nil {
-		return "rejected: " + p.ErrorInProcess.Error()
+	cd, err := p.CertificateResult()
+	if err != nil {
+		return "rejected: " + err.Error()
 	}
-	cd := p.Certificate()
 	if cd.EIDASCertificate {
 		return "marked as eIDAS"
 	}
@@ -225,13 +232,28 @@ func TestWithdrawnApprovalCannotAuthenticateAgain(t *testing.T) {
 	}
 }
 
+func TestRetryAfterARejectedCertificate(t *testing.T) {
+	e := newTestEnv(t)
+	bad, _ := testCert{}.build(t)
+	good, fp := testCert{}.build(t)
+	e.approve(t, fp, "NTRNL-12345678")
+
+	p := e.authenticate(t, header, bad)
+	if got := result(p); !strings.HasPrefix(got, "rejected: ") {
+		t.Fatalf("first attempt: %s", got)
+	}
+	if got := result(e.present(t, p, header, good)); got != "org=NTRNL-12345678 manual=true" {
+		t.Fatalf("retry with the same code: %s", got)
+	}
+}
+
 func TestWhitelistErrorRejects(t *testing.T) {
 	e := newTestEnv(t)
 	cert, _ := testCert{orgID: "VATES-B00000000"}.build(t)
 	e.db.Close()
 	p := e.authenticate(t, header, cert)
-	if got := result(p); !strings.Contains(got, "checking approved certificate") || p.Certificate() != nil {
-		t.Fatalf("got %q", got)
+	if cd, _ := p.CertificateResult(); !strings.Contains(result(p), "checking approved certificate") || cd != nil {
+		t.Fatalf("got %q", result(p))
 	}
 }
 

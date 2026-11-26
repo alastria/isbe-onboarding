@@ -210,9 +210,7 @@ func (s *CertAuthServer) Authorization(c *fiber.Ctx) error {
 		// Store certificate data, email of the user and powers in the authProcess struct
 		authProcess.SetCertificate(ssoSession.CertificateData)
 		authProcess.AcceptCertificate(ssoSession.CertificateData)
-		authProcess.CompleteCertificateFlow(ssoSession.CertificateData)
-		authProcess.Email = ssoSession.Email
-		authProcess.Powers = ssoSession.Powers
+		authProcess.CompleteCertificateFlow(ssoSession.CertificateData, ssoSession.Email, ssoSession.Powers)
 
 		// And redirect back to the caller
 		redirectURL := fmt.Sprintf("%s?code=%s", authProcess.RedirectURI, authProcess.Code)
@@ -303,10 +301,10 @@ func (s *CertAuthServer) APITokenExchange(c *fiber.Ctx) error {
 		return errl.Errorf("auth code client mismatch")
 	}
 
-	// Tokens for a certificate authentication are only issued for the certificate accepted by
-	// CertAuth once its flow completed and, if manually approved, while it is still approved
-	certData := authProcess.CompletedCertificate()
-	if authProcess.Certificate() != nil && (certData == nil || (certData.ManuallyApproved && !s.stillManuallyApproved(certData))) {
+	// Tokens are only issued for the authentication that completed: a certificate accepted by
+	// CertAuth (still approved, if manually approved) or a wallet credential
+	done := authProcess.Completed()
+	if done == nil || (done.Certificate != nil && done.Certificate.ManuallyApproved && !s.stillManuallyApproved(done.Certificate)) {
 		slog.Warn("Token requested for a certificate authentication that was not completed", "auth_code", tokenReq.Code)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error":             "invalid_grant",
@@ -321,7 +319,7 @@ func (s *CertAuthServer) APITokenExchange(c *fiber.Ctx) error {
 	}
 
 	// Generate tokens with certificate data if available
-	tokens, err := s.generateTokens(authProcess, certData, rp)
+	tokens, err := s.generateTokens(authProcess, done, rp)
 	if err != nil {
 		return errl.Errorf("failed to generate tokens: %w", err)
 	}
@@ -448,9 +446,14 @@ func (s *CertAuthServer) generateAuthProcess(req *models.AuthorizationRequest, r
 	return authCode
 }
 
-func (s *CertAuthServer) generateTokens(authProcess *models.AuthProcess, certData *models.CertificateData, rp *models.RelyingParty) (map[string]any, error) {
+func (s *CertAuthServer) generateTokens(authProcess *models.AuthProcess, done *models.CompletedAuthentication, rp *models.RelyingParty) (map[string]any, error) {
 
-	if certData == nil && authProcess.CredentialData == nil {
+	// The tokens only carry the data of the completed authentication
+	certData := done.Certificate
+	authProcess = &models.AuthProcess{Code: authProcess.Code, ClientID: authProcess.ClientID, Nonce: authProcess.Nonce,
+		Scopes: authProcess.Scopes, Email: done.Email, Powers: done.Powers}
+
+	if certData == nil && done.Credential == nil {
 		err := errl.Errorf("no credential or certificate data found in auth process")
 		slog.Error(err.Error(), "auth_code", authProcess.Code)
 		return nil, err
@@ -488,7 +491,7 @@ func (s *CertAuthServer) generateTokens(authProcess *models.AuthProcess, certDat
 	} else {
 		// Authentication performed with a Verifiable Credential
 
-		credData := authProcess.CredentialData
+		credData := done.Credential
 
 		idToken, err := s.jwtService.GenerateIDTokenForCredential(authProcess, credData, rp)
 		if err != nil {
@@ -522,7 +525,7 @@ func generateRandomString() string {
 }
 
 // generateSSOCookie generates the SSO cookie
-func (s *CertAuthServer) generateSSOCookie(ssoSessionID string, certData *models.CertificateData) (*fiber.Cookie, error) {
+func (s *CertAuthServer) generateSSOCookie(ssoSessionID string, certData *models.CertificateData, email string) (*fiber.Cookie, error) {
 
 	// Determine the sub identifier based on certificate type
 	var sub string
@@ -547,7 +550,7 @@ func (s *CertAuthServer) generateSSOCookie(ssoSessionID string, certData *models
 		"aud":   s.certAuthURL,                         // Audience
 		"exp":   time.Now().Add(24 * time.Hour).Unix(), // Expiration
 		"iat":   time.Now().Unix(),                     // Issued at
-		"email": certData.Subject.EmailAddress,         // Email
+		"email": email,                                 // Email
 		// Custom claims
 		"session_id": ssoSessionID, // SSO session ID
 	}
