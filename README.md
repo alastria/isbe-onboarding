@@ -69,9 +69,11 @@ certificates that cannot pass the eIDAS validation: an approved qualified certif
 checked by EU DSS either.
 
 **Infrastructure requirements.** The certificate is read only from the `tls-client-certificate`
-header. The reverse proxy must require the client certificate in the TLS handshake (proof of
-possession of the private key), always set that header from the handshake and never forward a
-value sent by the client, and the CertSec port must only be reachable through it.
+header (breaking change: `X-Amzn-Mtls-Clientcert` is no longer read, so a proxy that only sends that
+header must be changed to send `tls-client-certificate`). The reverse proxy must require the client
+certificate in the TLS handshake (proof of possession of the private key), always set that header
+from the handshake and never forward a value sent by the client, and the CertSec port must only be
+reachable through it.
 
 **Before deploying (mandatory).** Before CS-407, a row only assigned an organization identifier to
 a certificate without one, and the certificate was still validated by EU DSS. With CS-407 every row

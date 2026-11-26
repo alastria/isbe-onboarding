@@ -164,7 +164,7 @@ func (e *testEnv) newAuthProcess(cd *models.CertificateData, accepted, completed
 	p := &models.AuthProcess{Code: code, ClientID: testClientID, RedirectURI: testRedirectURL, Scopes: []string{"openid", "eidas"}}
 	p.SetCertificate(cd)
 	if accepted {
-		p.AcceptCertificate(cd)
+		p.AcceptCertificate(cd, cd)
 	}
 	if completed {
 		p.CompleteCertificateFlow(cd, "user@example.com", "")
@@ -221,10 +221,18 @@ func TestCertificateValidationInEveryProfile(t *testing.T) {
 					orgID = testOrgID
 				}
 				cd := newCertData(t, orgID, tc.approved)
+				if tc.approved {
+					e.approve(t, cd)
+				}
 				p, body := e.certificateBack(t, cd)
-				accepted := p.AcceptedCertificate() != nil
+				acceptedCert := p.AcceptedCertificate()
+				accepted := acceptedCert != nil
 				if calls.Load() != tc.dssCalls || accepted != tc.accepted(profile) || cd.EIDASCertificate {
-					t.Fatalf("dss_calls=%d accepted=%v shared eidas flag=%v", calls.Load(), accepted, cd.EIDASCertificate)
+					t.Fatalf("dss_calls=%d accepted=%v received data modified=%v", calls.Load(), accepted, cd.EIDASCertificate)
+				}
+				// The result of the validation is kept for the rest of the flow
+				if accepted && acceptedCert.EIDASCertificate != (tc.dss == "PASSED") {
+					t.Fatalf("eIDAS result kept=%v, want %v", acceptedCert.EIDASCertificate, tc.dss == "PASSED")
 				}
 				for _, text := range []string{"aprobado manualmente", "no es válido según las normas eIDAS"} {
 					if accepted && strings.Contains(body, text) != (text == tc.page) {
@@ -232,6 +240,22 @@ func TestCertificateValidationInEveryProfile(t *testing.T) {
 					}
 				}
 			})
+		}
+	}
+}
+
+func TestWithdrawnOrExpiredApprovalRejectedAfterCertSec(t *testing.T) {
+	e := newTestEnv(t, types.PROFILE_ISBE_PRO, "")
+
+	withdrawn := newCertData(t, testOrgID, true) // approved in CertSec, withdrawn since
+	expired := newCertData(t, testOrgID, true)   // still approved, but expired since
+	e.approve(t, expired)
+	expired.Certificate.NotAfter = time.Now().Add(-time.Minute)
+
+	for name, cd := range map[string]*models.CertificateData{"withdrawn": withdrawn, "expired": expired} {
+		p, body := e.certificateBack(t, cd)
+		if p.AcceptedCertificate() != nil || !strings.Contains(body, "no longer approved") {
+			t.Fatalf("%s approval accepted", name)
 		}
 	}
 }
@@ -460,7 +484,7 @@ func TestTokensFollowTheCompletedMethod(t *testing.T) {
 	}
 
 	// The wallet, then a certificate flow that completes: certificate tokens
-	p.AcceptCertificate(cd)
+	p.AcceptCertificate(cd, cd)
 	p.CompleteCertificateFlow(cd, "user@example.com", "")
 	if status, claims := e.exchange(t, p); status != fiber.StatusOK || !strings.Contains(claims, testOrgID) || strings.Contains(claims, "VATES-W00000000") {
 		t.Fatalf("wallet then certificate: status %d claims %s", status, claims)

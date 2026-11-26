@@ -151,10 +151,11 @@ func (s *CertAuthServer) pageRequestEmail(c *fiber.Ctx) error {
 	}
 
 	// The certificate data is shared with the other requests of this authentication and is never
-	// modified: the result of the validation goes to a copy, used to present it
+	// modified: the validation works on a copy, which replaces it once accepted
 	received := certData
-	view := *certData
-	certData = &view
+	validated := *certData
+	validated.EIDASCertificate = false
+	certData = &validated
 
 	// We do not accept personal certificates, which do not have the organizationIdentifier field
 	if certData.OrganizationID == "" {
@@ -183,6 +184,15 @@ func (s *CertAuthServer) pageRequestEmail(c *fiber.Ctx) error {
 	// Check that the certificate is a valid eIDAS one. A certificate manually approved in CertSec
 	// (approved_certificates) is trusted without EU DSS and is never marked as eIDAS.
 	if certData.ManuallyApproved {
+		// The approval must still hold before going on (it may be withdrawn or the certificate expire)
+		if !s.stillManuallyApproved(certData) {
+			err := errl.Errorf("the certificate is no longer approved")
+			slog.Warn(err.Error(), "auth_code", authCode, "organization_identifier", certData.OrganizationID)
+			if isEnglish {
+				return s.htmlRender.Render(c, "error_en", fiber.Map{"message": err})
+			}
+			return s.htmlRender.Render(c, "error", fiber.Map{"message": err})
+		}
 		slog.Info("Certificate accepted by manual approval, without eIDAS validation", "auth_code", authCode, "organization_identifier", certData.OrganizationID)
 	} else if _, errService, errValidation := VerifyCertificate(certData.CertificateDER, s.euDSSURL); errService == nil && errValidation == nil {
 		certData.EIDASCertificate = true
@@ -213,9 +223,9 @@ func (s *CertAuthServer) pageRequestEmail(c *fiber.Ctx) error {
 		}
 	}
 
-	// The certificate is accepted: the next steps of the flow are allowed for it, unless CertSec
-	// received another certificate meanwhile
-	if !authProcess.AcceptCertificate(received) {
+	// The certificate is accepted with the result of its validation: the next steps of the flow are
+	// allowed for it, unless CertSec received another certificate meanwhile
+	if !authProcess.AcceptCertificate(received, certData) {
 		return errl.Errorf("the certificate changed during its validation")
 	}
 
@@ -261,7 +271,7 @@ func (s *CertAuthServer) pageRequestEmail(c *fiber.Ctx) error {
 		slog.Debug("bypass email validation", "code", authProcess.Code, "redirect_uri", authProcess.RedirectURI)
 
 		// Store email of the user in the authProcess struct
-		if !authProcess.CompleteCertificateFlow(received, email, powers) {
+		if !authProcess.CompleteCertificateFlow(certData, email, powers) {
 			return errl.Errorf("the certificate changed during the authentication")
 		}
 

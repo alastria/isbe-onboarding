@@ -17,7 +17,10 @@ y el proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ### Cambiado
 
-- El certificado de cliente se lee solo de la cabecera `tls-client-certificate`, sin alternativa.
+- **Cambio incompatible:** el certificado de cliente se lee solo de la cabecera
+  `tls-client-certificate`. Ya no se lee `X-Amzn-Mtls-Clientcert`: un despliegue cuyo proxy solo
+  envíe esa cabecera deja de autenticar certificados (también en administración) hasta que el
+  proxy envíe el certificado en `tls-client-certificate`.
 - Los pasos posteriores del flujo y la emisión de tokens exigen que CertAuth haya aceptado el
   certificado y que el flujo haya terminado.
 - El identificador de organización del contrato procede siempre del certificado (o de su aprobación).

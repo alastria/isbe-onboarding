@@ -105,15 +105,16 @@ func (a *AuthProcess) CertificateResult() (*CertificateData, error) {
 	return a.CertificateData, a.ErrorInProcess
 }
 
-// AcceptCertificate records that CertAuth validated cd. It fails if cd is no longer the
+// AcceptCertificate records that CertAuth validated the current certificate, replacing it with
+// validated, its copy carrying the result of the validation. It fails if current is no longer the
 // current certificate.
-func (a *AuthProcess) AcceptCertificate(cd *CertificateData) bool {
+func (a *AuthProcess) AcceptCertificate(current, validated *CertificateData) bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if cd == nil || a.CertificateData != cd {
+	if current == nil || validated == nil || a.CertificateData != current {
 		return false
 	}
-	a.acceptedCertificate = cd
+	a.CertificateData, a.acceptedCertificate = validated, validated
 	return true
 }
 
