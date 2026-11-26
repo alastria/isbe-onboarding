@@ -2,6 +2,8 @@
 package models
 
 import (
+	"crypto/subtle"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -55,6 +57,174 @@ type AuthProcess struct {
 	CredentialData        map[string]any   `json:"credential_data,omitempty"`
 	FinishedWalletAuth    bool             `json:"finished_wallet_auth,omitempty"`
 	ErrorInProcess        error            `json:"-"`
+
+	// The state shared by the concurrent requests of an authentication: CertificateData,
+	// ErrorInProcess, Email, EmailVerificationCode, EmailVerified, CredentialData and FinishedWalletAuth are
+	// written only through the methods below, under mu, together with the certificate that CertAuth accepted and the
+	// authentication that completed (the only one tokens are issued for). attempt identifies the
+	// current certificate attempt: the requests of one attempt share it, whatever copy of the
+	// certificate data they hold, and a new attempt invalidates the previous one.
+	mu                  sync.Mutex
+	attempt             uint64
+	acceptedCertificate *CertificateData
+	completed           *CompletedAuthentication
+}
+
+// CompletedAuthentication is the authentication that completed for an AuthProcess: either a
+// certificate accepted by CertAuth or a wallet credential, with the data that goes into the tokens.
+type CompletedAuthentication struct {
+	Certificate *CertificateData
+	Credential  map[string]any
+	Email       string
+	Powers      string
+}
+
+// StartCertificateAttempt starts a new certificate attempt, when CertSec receives a certificate:
+// the previous certificate, its error, its acceptance and any completed authentication no longer
+// apply. It returns the identifier of the new attempt.
+func (a *AuthProcess) StartCertificateAttempt() uint64 {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.attempt++
+	a.CertificateData, a.ErrorInProcess, a.acceptedCertificate, a.completed = nil, nil, nil, nil
+	a.Email, a.EmailVerificationCode, a.EmailVerified = "", "", false
+	a.CredentialData, a.FinishedWalletAuth = nil, false
+	return a.attempt
+}
+
+// FailCertificateAttempt records why CertSec rejected the certificate of the attempt. It does
+// nothing if a new attempt started meanwhile.
+func (a *AuthProcess) FailCertificateAttempt(attempt uint64, err error) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if attempt != a.attempt {
+		return false
+	}
+	a.ErrorInProcess = err
+	return true
+}
+
+// SetCertificate sets the certificate received by CertSec in the attempt. It does nothing if a
+// new attempt started meanwhile.
+func (a *AuthProcess) SetCertificate(attempt uint64, cd *CertificateData) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if attempt != a.attempt {
+		return false
+	}
+	a.CertificateData = cd
+	return true
+}
+
+// SetEmailVerification records the email to verify and its code for the attempt, not verified yet.
+// It does nothing if a new attempt started meanwhile.
+func (a *AuthProcess) SetEmailVerification(attempt uint64, email, code string) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if attempt != a.attempt {
+		return false
+	}
+	a.Email, a.EmailVerificationCode, a.EmailVerified = email, code, false
+	return true
+}
+
+// VerifyEmail marks the email of the attempt as verified if the email and the code are the ones
+// sent. It fails if a new attempt started meanwhile.
+func (a *AuthProcess) VerifyEmail(attempt uint64, email, code string) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if attempt != a.attempt || a.EmailVerificationCode == "" || email != a.Email ||
+		subtle.ConstantTimeCompare([]byte(code), []byte(a.EmailVerificationCode)) != 1 {
+		return false
+	}
+	a.EmailVerified = true
+	return true
+}
+
+// VerifiedEmail returns the email of the current attempt if it was verified, or "".
+func (a *AuthProcess) VerifiedEmail() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if !a.EmailVerified {
+		return ""
+	}
+	return a.Email
+}
+
+// EmailVerification returns the email to verify and its code in the current attempt.
+func (a *AuthProcess) EmailVerification() (email, code string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.Email, a.EmailVerificationCode
+}
+
+// CertificateResult returns the certificate of the current attempt (the one received by CertSec,
+// or its validated copy once accepted), the attempt, and why CertSec rejected it, if it did.
+func (a *AuthProcess) CertificateResult() (*CertificateData, uint64, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.CertificateData, a.attempt, a.ErrorInProcess
+}
+
+// AcceptCertificate records that CertAuth validated the certificate of the attempt: validated,
+// a copy of it carrying the result of the validation, replaces the certificate data. It fails if
+// a new attempt started meanwhile. Several validations of the same attempt can be accepted.
+func (a *AuthProcess) AcceptCertificate(attempt uint64, validated *CertificateData) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if validated == nil || attempt != a.attempt || a.CertificateData == nil {
+		return false
+	}
+	a.CertificateData, a.acceptedCertificate = validated, validated
+	return true
+}
+
+// AcceptedCertificate returns the accepted certificate of the current attempt and the attempt, if
+// its flow has not completed yet, or nil. The steps of the certificate flow use it.
+func (a *AuthProcess) AcceptedCertificate() (*CertificateData, uint64) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.acceptedCertificate == nil || a.completed != nil {
+		return nil, 0
+	}
+	return a.acceptedCertificate, a.attempt
+}
+
+// CompleteCertificateFlow records that the flow finished for cd, the accepted certificate of the
+// attempt, with the email and powers for the tokens. It fails if a new attempt started meanwhile.
+func (a *AuthProcess) CompleteCertificateFlow(attempt uint64, cd *CertificateData, email, powers string) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if cd == nil || attempt != a.attempt || a.acceptedCertificate == nil {
+		return false
+	}
+	a.completed = &CompletedAuthentication{Certificate: cd, Email: email, Powers: powers}
+	return true
+}
+
+// CompleteWalletAuthentication records the credential presented with the wallet. It replaces any
+// certificate attempt, which can no longer go on: the tokens are issued for the wallet.
+func (a *AuthProcess) CompleteWalletAuthentication(cred map[string]any) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.attempt++
+	a.CertificateData, a.ErrorInProcess, a.acceptedCertificate = nil, nil, nil
+	a.CredentialData, a.FinishedWalletAuth = cred, true
+	a.completed = &CompletedAuthentication{Credential: cred}
+}
+
+// WalletAuthFinished reports whether the wallet authentication completed.
+func (a *AuthProcess) WalletAuthFinished() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.FinishedWalletAuth
+}
+
+// Completed returns the authentication that completed, or nil.
+func (a *AuthProcess) Completed() *CompletedAuthentication {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.completed
 }
 
 // SSOSession represents a single sign-on session, stored in-memory in the server

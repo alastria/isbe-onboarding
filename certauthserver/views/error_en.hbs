@@ -11,7 +11,7 @@
     <div class="ui huge header">There was an error</div>
 
     <div class="ui negative message">
-        <div class="header">Error</div>
+        <div class="header">{{ if .title }}{{ .title }}{{ else }}Error{{ end }}</div>
         <p>{{ .message }}</p>
     </div>
 

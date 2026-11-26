@@ -124,7 +124,9 @@
             <input type="hidden" name="organization_name" value="{{ .OrganizationName }}">
             <input type="hidden" name="organization_country" value="{{ .OrganizationCountry }}">
             <input type="hidden" name="organization_nif" value="{{ .OrganizationNif }}">
+            {{ if not $.representativeNameEditable }}
             <input type="hidden" name="representative_name" value="{{ .RepresentativeName }}">
+            {{ end }}
             <input type="hidden" name="representative_email" value="{{ .RepresentativeEmail }}">
 
             <h2 class="text-center"><strong>REUNIDOS</strong></h2>
@@ -152,7 +154,12 @@
                     <option value="D.">D.</option>
                     <option value="Dña.">Dña.</option>
                 </select>
+                {{ if $.representativeNameEditable }}
+                <input type="text" name="representative_name" placeholder="Nombre y apellidos del representante legal"
+                    class="contract-input" style="width: 300px;" required value="{{ .RepresentativeName }}">,
+                {{ else }}
                 <span class="contract-readonly">{{ .RepresentativeName }}</span>,
+                {{ end }}
                 con correo electrónico
                 <span class="contract-readonly">{{ .RepresentativeEmail }}</span>
                 (en adelante, la “<strong>Entidad Adherente</strong>”).
@@ -396,6 +403,16 @@
             var contract_base = contract_form.elements["contract_base"];
             var contract_basic = contract_form.elements["contract_basic"];
             var contract_developer = contract_form.elements["contract_developer"];
+            var representative_name = contract_form.elements["representative_name"];
+
+            // form.submit() skips the HTML validation of the required fields
+            if (!representative_name.value.trim()) {
+                alert("Debes indicar el nombre y apellidos del representante legal");
+                if (representative_name.type === "text") {
+                    representative_name.focus();
+                }
+                return;
+            }
 
             if (!contract_base.checked) {
                 alert("Debes aceptar las estipulaciones del contrato marco");

@@ -48,6 +48,86 @@ The following environment variables can be used to override configuration values
 | `MANAGEMENT_URL` | Management Service URL | Profile dependent |
 | `CERTAUTH_LOGS_NOCOLOR` | Set to "true" to disable log coloring | `false` |
 
+## Manually approved certificates
+
+Some organizations hold certificates that are not qualified eIDAS certificates, or that lack the
+usual attributes (`organizationIdentifier`, `serialNumber`). Adding such a certificate to the
+`approved_certificates` table is the only step to approve it for one organization, in every
+profile. The approval is a source of trust **alternative** to the eIDAS validation:
+
+| | eIDAS validation | Manual approval |
+|---|---|---|
+| Trust comes from | EU Trusted Lists, via EU DSS | The `approved_certificates` row (SHA-256 of the certificate) |
+| Organization | `organizationIdentifier` of the certificate | `organization_identifier` of the row (it must match the certificate, if the certificate has one) |
+| Checked by the application | Validity period, EU DSS (chain, qualification, revocation) | Validity period, key strength (RSA ≥ 2048, P-256/384/521, Ed25519), key usage (`digitalSignature`, `clientAuth` when present), not a CA |
+| Revocation | Checked by EU DSS | **Manual**: ISBE withdraws the approval |
+| Marked as eIDAS | Yes | Never |
+
+Certificates that are not approved follow the usual eIDAS flow. Being approved never grants
+administration rights. If the whitelist cannot be queried, the certificate is rejected. Approve only
+certificates that cannot pass the eIDAS validation: an approved qualified certificate is not
+checked by EU DSS either.
+
+**Infrastructure requirements.** The certificate is read only from the `tls-client-certificate`
+header (breaking change: `X-Amzn-Mtls-Clientcert` is no longer read, so a proxy that only sends that
+header must be changed to send `tls-client-certificate`). The reverse proxy must require the client
+certificate in the TLS handshake (proof of possession of the private key), always set that header
+from the handshake and never forward a value sent by the client, and the CertSec port must only be
+reachable through it.
+
+**Before deploying (mandatory).** Before CS-407, a row only assigned an organization identifier to
+a certificate without one, and the certificate was still validated by EU DSS. With CS-407 every row
+is trusted without EU DSS. Review every existing row and, for each certificate:
+
+- if ISBE accepts to trust it manually (and to revoke it manually), approve it again, recording it in
+  the comment:
+  `UPDATE approved_certificates SET comment = 'Re-approved for CS-407 by <who> on <date>: <how it was verified>' WHERE certificate_sha256 = '<sha256>';`
+- otherwise delete the row. A certificate with its own `organizationIdentifier` then keeps the eIDAS
+  validation as before. A certificate without it can no longer authenticate: keeping the eIDAS
+  validation together with an assigned organization identifier is not supported.
+
+```sql
+SELECT certificate_sha256, organization_identifier, comment, created_at FROM approved_certificates;
+```
+
+**Approving a certificate**, after verifying the identity of the organization out of band
+(`certificate_sha256` is the SHA-256 of the DER certificate in lowercase hex, e.g.
+`openssl x509 -in cert.pem -outform DER | sha256sum`):
+
+```sql
+INSERT INTO approved_certificates (certificate_sha256, organization_identifier, comment)
+VALUES ('<sha256>', 'NTRNL-12345678', 'Approved by <who> on <date>: <how it was verified>');
+```
+
+Optionally, the row can also hold the `serial_number`, `given_name` and `surname` of the certificate
+holder, as verified by ISBE during the approval. They only complete the attributes the certificate
+lacks, and they are used exactly as entered, without any format check or normalization. If the
+certificate has the attribute with a different value, the approval is rejected. Changing them
+invalidates the authentication processes and SSO sessions that used the previous values. They give the tokens the `user_identifier`, `serial_number`,
+`given_name`, `family_name` and `user` claims required, for example, to issue credentials. Leave them
+NULL when they were not verified: existing rows keep working as before.
+
+```sql
+UPDATE approved_certificates SET serial_number = '<verified identifier>', given_name = '<given name>',
+    surname = '<surname>' WHERE certificate_sha256 = '<sha256>';
+```
+
+**Manual revocation.** ISBE does not check the revocation of approved certificates, so it must
+withdraw the approval as soon as the certificate is compromised, revoked or no longer represents
+the organization:
+
+```sql
+DELETE FROM approved_certificates WHERE certificate_sha256 = '<sha256>';
+```
+
+From then on (and also once the certificate expires) it can no longer authenticate through the
+manual approval, its SSO session is discarded at its next use, and an authentication process in
+progress cannot continue nor obtain tokens. Withdrawing the approval only removes the manual trust:
+a certificate that passes the eIDAS validation (with its own `organizationIdentifier`) can still
+authenticate through eIDAS, as any other qualified certificate; its revocation is then up to its
+issuer. Tokens already issued stay valid until they expire, and the registration of the organization
+is not removed.
+
 ## Observability
 
 The onboard application exposes Prometheus metrics at the `/metrics` endpoint of the CertAuth service. 
@@ -124,7 +204,7 @@ certsec.mycredential.es {
 }
 ```
 
-- Caddy sends the certificate in an HTTP header (our default is `tls-client-certificate`).
+- Caddy sends the certificate in the HTTP header `tls-client-certificate`, the only one the application reads.
 - Our application receives the certificate, decodes it and extracts the user information from the certificate, mainly the Subject field.
 - For this application, we require the certificate to be an "organizational" certificate, that is, either a certificate for seals (QSeal), or a certificate of representation (a QSign where the user is associated to the organization that represents). In both certificates, the Subject field contains the `organizationIdentifier` (OID 2.5.4.97). For details, see the `x509util` package in this project.
 - Once this is done, the certsec.mycredential.eu server sends back to the certauth.mycredential.eu server the information about the user (essentially the fields in the Subject field of the certificate).
