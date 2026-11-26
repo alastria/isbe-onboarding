@@ -11,6 +11,7 @@ import (
 	"encoding/asn1"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -163,7 +164,7 @@ func (e *testEnv) newAuthProcess(cd *models.CertificateData, accepted, completed
 	code := fmt.Sprintf("code-%d", time.Now().UnixNano())
 	p := &models.AuthProcess{Code: code, ClientID: testClientID, RedirectURI: testRedirectURL, Scopes: []string{"openid", "eidas"}}
 	attempt := p.StartCertificateAttempt()
-	p.SetCertificate(cd)
+	p.SetCertificate(attempt, cd)
 	if accepted {
 		p.AcceptCertificate(attempt, cd)
 	}
@@ -269,24 +270,24 @@ func TestLaterStepsRequireAnAcceptedCertificate(t *testing.T) {
 	// Not accepted (e.g. CertSec received another certificate): the email step refuses it
 	p := e.newAuthProcess(cd, false, false)
 	e.do(t, postForm(sendEmailVerificationEndpoint, url.Values{"auth_code": {p.Code}, "email": {"user@example.com"}}))
-	if p.Email != "" || p.EmailVerificationCode != "" {
+	if email, code := p.EmailVerification(); email != "" || code != "" {
 		t.Fatalf("email step run for a certificate that was not accepted")
 	}
 
 	// Accepted for one certificate, then another one replaced it: refused as well
 	p = e.newAuthProcess(cd, true, false)
-	p.StartCertificateAttempt() // CertSec receives another certificate
-	p.SetCertificate(newCertData(t, testOrgID, true))
+	next := p.StartCertificateAttempt() // CertSec receives another certificate
+	p.SetCertificate(next, newCertData(t, testOrgID, true))
 	e.do(t, postForm(sendEmailVerificationEndpoint, url.Values{"auth_code": {p.Code}, "email": {"user@example.com"}}))
-	if p.Email != "" {
+	if email, _ := p.EmailVerification(); email != "" {
 		t.Fatalf("email step run for a certificate other than the accepted one")
 	}
 
 	// The contract shows the organization of the certificate, whatever the form says
 	p = e.newAuthProcess(cd, true, false)
-	p.Email = "user@example.com"
+	setEmail(p, "user@example.com")
 	_, body := e.do(t, postForm(presentContractForAcceptanceEndpoint, url.Values{
-		"auth_code": {p.Code}, "representative_email": {p.Email}, "representative_name": {"Jane Doe"},
+		"auth_code": {p.Code}, "representative_email": {"user@example.com"}, "representative_name": {"Jane Doe"},
 		"organization_nif": {"VATES-B99999999"}, "organization_country": {"NL"},
 	}))
 	if !strings.Contains(body, testOrgID) || strings.Contains(body, "VATES-B99999999") {
@@ -388,8 +389,8 @@ func TestWithdrawalStopsOpenAuthenticationProcesses(t *testing.T) {
 	cd := newCertData(t, testOrgID, true)
 	e.approve(t, cd)
 	p := e.newAuthProcess(cd, true, false)
-	p.Email = "user@example.com"
-	form := url.Values{"auth_code": {p.Code}, "representative_email": {p.Email}, "representative_name": {"Jane Doe"}}
+	setEmail(p, "user@example.com")
+	form := url.Values{"auth_code": {p.Code}, "representative_email": {"user@example.com"}, "representative_name": {"Jane Doe"}}
 	if _, body := e.do(t, postForm(presentContractForAcceptanceEndpoint, form)); !strings.Contains(body, testOrgID) {
 		t.Fatalf("contract step refused while the certificate is approved")
 	}
@@ -480,7 +481,7 @@ func TestTokensFollowTheCompletedMethod(t *testing.T) {
 	p := e.newAuthProcess(nil, false, false)
 	p.CompleteWalletAuthentication(testCredential)
 	attempt := p.StartCertificateAttempt()
-	p.SetCertificate(cd)
+	p.SetCertificate(attempt, cd)
 	if status, _ := e.exchange(t, p); status != fiber.StatusBadRequest {
 		t.Fatalf("wallet then unfinished certificate: status %d, want 400", status)
 	}
@@ -516,8 +517,8 @@ func TestRepresentativeNameRequiredBeforeTheContract(t *testing.T) {
 	e.approve(t, cd)
 	for _, endpoint := range []string{presentContractForAcceptanceEndpoint, contractAcceptedEndpoint} {
 		p := e.newAuthProcess(cd, true, false)
-		p.Email = "user@example.com"
-		resp, body := e.do(t, postForm(endpoint, url.Values{"auth_code": {p.Code}, "representative_email": {p.Email}, "representative_name": {"   "}}))
+		setEmail(p, "user@example.com")
+		resp, body := e.do(t, postForm(endpoint, url.Values{"auth_code": {p.Code}, "representative_email": {"user@example.com"}, "representative_name": {"   "}}))
 		if resp.StatusCode != fiber.StatusBadRequest || !strings.Contains(body, "Missing representative name") {
 			t.Fatalf("%s: status %d: %s", endpoint, resp.StatusCode, body)
 		}
@@ -534,14 +535,14 @@ func TestConcurrentRequestsOfOneAuthentication(t *testing.T) {
 
 	for range 20 {
 		p := e.newAuthProcess(validated, false, false)
-		p.Email = "user@example.com"
+		setEmail(p, "user@example.com")
 		var wg sync.WaitGroup
 		run := func(f func()) { wg.Add(1); go func() { defer wg.Done(); f() }() }
 		run(func() { e.do(t, httptest.NewRequest("GET", CertificateBackEndpoint+"?code="+p.Code, nil)) })
-		run(func() { p.StartCertificateAttempt(); p.SetCertificate(other) })
+		run(func() { p.SetCertificate(p.StartCertificateAttempt(), other) })
 		run(func() { p.CompleteWalletAuthentication(testCredential) })
 		run(func() {
-			e.do(t, postForm(presentContractForAcceptanceEndpoint, url.Values{"auth_code": {p.Code}, "representative_email": {p.Email}, "representative_name": {"Jane Doe"}}))
+			e.do(t, postForm(presentContractForAcceptanceEndpoint, url.Values{"auth_code": {p.Code}, "representative_email": {"user@example.com"}, "representative_name": {"Jane Doe"}}))
 		})
 		run(func() {
 			if status, claims := e.exchange(t, p); status == fiber.StatusOK && strings.Contains(claims, "NTRNL-87654321") {
@@ -610,9 +611,9 @@ func TestLaterStepDuringReload(t *testing.T) {
 	// A reload validates it again while the contract step of the same attempt runs
 	reload := e.certificateBackAsync(t, p)
 	<-entered
-	p.Email = "user@example.com"
+	setEmail(p, "user@example.com")
 	_, body := e.do(t, postForm(presentContractForAcceptanceEndpoint, url.Values{
-		"auth_code": {p.Code}, "representative_email": {p.Email}, "representative_name": {"Jane Doe"}}))
+		"auth_code": {p.Code}, "representative_email": {"user@example.com"}, "representative_name": {"Jane Doe"}}))
 	close(release)
 	if !strings.Contains(body, "VATES-B00000000") {
 		t.Fatalf("the contract step was invalidated by a reload of the same attempt")
@@ -634,8 +635,7 @@ func TestCertificateChangedDuringValidation(t *testing.T) {
 	<-entered
 	// CertSec receives another certificate: a new attempt
 	other := newCertData(t, "VATES-B11111111", false)
-	p.StartCertificateAttempt()
-	p.SetCertificate(other)
+	p.SetCertificate(p.StartCertificateAttempt(), other)
 	close(release)
 
 	if body := <-page; strings.Contains(body, `name="email"`) {
@@ -646,5 +646,26 @@ func TestCertificateChangedDuringValidation(t *testing.T) {
 	}
 	if cd, _, _ := p.CertificateResult(); cd != other {
 		t.Fatalf("the certificate of the new attempt was replaced")
+	}
+}
+
+// setEmail records the verified email of the current attempt, as the email step does.
+func setEmail(p *models.AuthProcess, email string) {
+	_, attempt, _ := p.CertificateResult()
+	p.SetEmailVerification(attempt, email, "")
+}
+
+func TestWalletLoginNotOverwrittenByAStaleCertificateRequest(t *testing.T) {
+	e := newTestEnv(t, types.PROFILE_ISBE_PRO, "")
+	p := e.newAuthProcess(nil, false, false)
+
+	// CertSec starts an attempt, the wallet login finishes, then CertSec ends its slow request
+	attempt := p.StartCertificateAttempt()
+	p.CompleteWalletAuthentication(testCredential)
+	p.SetCertificate(attempt, newCertData(t, testOrgID, true))
+	p.FailCertificateAttempt(attempt, errors.New("rejected"))
+
+	if status, claims := e.exchange(t, p); status != fiber.StatusOK || !strings.Contains(claims, "VATES-W00000000") {
+		t.Fatalf("wallet login lost: status %d claims %s", status, claims)
 	}
 }

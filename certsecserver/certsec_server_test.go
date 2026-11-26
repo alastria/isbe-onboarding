@@ -128,10 +128,10 @@ func (e *testEnv) authenticate(t *testing.T, header, b64der string) *models.Auth
 	authProcess := &models.AuthProcess{Code: fmt.Sprintf("code-%d", time.Now().UnixNano())}
 	previous := &models.CertificateData{}
 	attempt := authProcess.StartCertificateAttempt()
-	authProcess.SetCertificate(previous)
+	authProcess.SetCertificate(attempt, previous)
 	authProcess.AcceptCertificate(attempt, previous)
 	authProcess.CompleteCertificateFlow(attempt, previous, "", "")
-	authProcess.FailCertificateAttempt(errors.New("previous attempt"))
+	authProcess.FailCertificateAttempt(attempt, errors.New("previous attempt"))
 	e.cache.Set(authProcess.Code, authProcess, time.Minute)
 	return e.present(t, authProcess, header, b64der)
 }

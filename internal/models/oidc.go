@@ -58,8 +58,8 @@ type AuthProcess struct {
 	ErrorInProcess        error            `json:"-"`
 
 	// The state shared by the concurrent requests of an authentication: CertificateData,
-	// ErrorInProcess, CredentialData and FinishedWalletAuth are written only through the methods
-	// below, under mu, together with the certificate that CertAuth accepted and the
+	// ErrorInProcess, Email, EmailVerificationCode, CredentialData and FinishedWalletAuth are
+	// written only through the methods below, under mu, together with the certificate that CertAuth accepted and the
 	// authentication that completed (the only one tokens are issued for). attempt identifies the
 	// current certificate attempt: the requests of one attempt share it, whatever copy of the
 	// certificate data they hold, and a new attempt invalidates the previous one.
@@ -86,22 +86,52 @@ func (a *AuthProcess) StartCertificateAttempt() uint64 {
 	defer a.mu.Unlock()
 	a.attempt++
 	a.CertificateData, a.ErrorInProcess, a.acceptedCertificate, a.completed = nil, nil, nil, nil
+	a.Email, a.EmailVerificationCode = "", ""
 	a.CredentialData, a.FinishedWalletAuth = nil, false
 	return a.attempt
 }
 
-// FailCertificateAttempt records why CertSec rejected the certificate of the current attempt.
-func (a *AuthProcess) FailCertificateAttempt(err error) {
+// FailCertificateAttempt records why CertSec rejected the certificate of the attempt. It does
+// nothing if a new attempt started meanwhile.
+func (a *AuthProcess) FailCertificateAttempt(attempt uint64, err error) bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	if attempt != a.attempt {
+		return false
+	}
 	a.ErrorInProcess = err
+	return true
 }
 
-// SetCertificate sets the certificate received by CertSec in the current attempt.
-func (a *AuthProcess) SetCertificate(cd *CertificateData) {
+// SetCertificate sets the certificate received by CertSec in the attempt. It does nothing if a
+// new attempt started meanwhile.
+func (a *AuthProcess) SetCertificate(attempt uint64, cd *CertificateData) bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	a.CertificateData, a.acceptedCertificate, a.completed = cd, nil, nil
+	if attempt != a.attempt {
+		return false
+	}
+	a.CertificateData = cd
+	return true
+}
+
+// SetEmailVerification records the email to verify and its code for the attempt. It does nothing
+// if a new attempt started meanwhile.
+func (a *AuthProcess) SetEmailVerification(attempt uint64, email, code string) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if attempt != a.attempt {
+		return false
+	}
+	a.Email, a.EmailVerificationCode = email, code
+	return true
+}
+
+// EmailVerification returns the email to verify and its code in the current attempt.
+func (a *AuthProcess) EmailVerification() (email, code string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.Email, a.EmailVerificationCode
 }
 
 // CertificateResult returns the certificate of the current attempt (the one received by CertSec,

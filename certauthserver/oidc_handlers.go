@@ -209,7 +209,7 @@ func (s *CertAuthServer) Authorization(c *fiber.Ctx) error {
 
 		// Store certificate data, email of the user and powers in the authProcess struct
 		attempt := authProcess.StartCertificateAttempt()
-		authProcess.SetCertificate(ssoSession.CertificateData)
+		authProcess.SetCertificate(attempt, ssoSession.CertificateData)
 		authProcess.AcceptCertificate(attempt, ssoSession.CertificateData)
 		authProcess.CompleteCertificateFlow(attempt, ssoSession.CertificateData, ssoSession.Email, ssoSession.Powers)
 

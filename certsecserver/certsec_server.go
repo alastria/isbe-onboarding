@@ -542,11 +542,11 @@ func (s *CertSecServer) handleCertificateAuth(c *fiber.Ctx) error {
 
 	// A new attempt: the previous certificate, its error, its acceptance and any completed
 	// authentication no longer apply
-	authProcess.StartCertificateAttempt()
+	attempt := authProcess.StartCertificateAttempt()
 
 	sendBackError := func(err error) error {
 		// Redirect back to certauth with an error
-		authProcess.FailCertificateAttempt(err)
+		authProcess.FailCertificateAttempt(attempt, err)
 		redirectURL := s.CertAuthURL + s.CertificateBackEndpoint + "?code=" + authCode + "&error=true"
 		return c.Status(fiber.StatusFound).Redirect(redirectURL)
 	}
@@ -630,7 +630,9 @@ func (s *CertSecServer) handleCertificateAuth(c *fiber.Ctx) error {
 	certData.ManuallyApproved = manuallyApproved
 
 	// Set the certificate data in the auth request for later retrieval
-	authProcess.SetCertificate(certData)
+	if !authProcess.SetCertificate(attempt, certData) {
+		slog.Warn("Certificate attempt superseded by a newer one", "auth_code", authCode)
+	}
 
 	// Redirect back to certauth
 	redirectURL := s.CertAuthURL + "/certificate-back?code=" + authCode
