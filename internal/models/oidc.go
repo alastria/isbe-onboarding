@@ -2,6 +2,7 @@
 package models
 
 import (
+	"crypto/subtle"
 	"sync"
 	"time"
 
@@ -58,7 +59,7 @@ type AuthProcess struct {
 	ErrorInProcess        error            `json:"-"`
 
 	// The state shared by the concurrent requests of an authentication: CertificateData,
-	// ErrorInProcess, Email, EmailVerificationCode, CredentialData and FinishedWalletAuth are
+	// ErrorInProcess, Email, EmailVerificationCode, EmailVerified, CredentialData and FinishedWalletAuth are
 	// written only through the methods below, under mu, together with the certificate that CertAuth accepted and the
 	// authentication that completed (the only one tokens are issued for). attempt identifies the
 	// current certificate attempt: the requests of one attempt share it, whatever copy of the
@@ -86,7 +87,7 @@ func (a *AuthProcess) StartCertificateAttempt() uint64 {
 	defer a.mu.Unlock()
 	a.attempt++
 	a.CertificateData, a.ErrorInProcess, a.acceptedCertificate, a.completed = nil, nil, nil, nil
-	a.Email, a.EmailVerificationCode = "", ""
+	a.Email, a.EmailVerificationCode, a.EmailVerified = "", "", false
 	a.CredentialData, a.FinishedWalletAuth = nil, false
 	return a.attempt
 }
@@ -115,16 +116,39 @@ func (a *AuthProcess) SetCertificate(attempt uint64, cd *CertificateData) bool {
 	return true
 }
 
-// SetEmailVerification records the email to verify and its code for the attempt. It does nothing
-// if a new attempt started meanwhile.
+// SetEmailVerification records the email to verify and its code for the attempt, not verified yet.
+// It does nothing if a new attempt started meanwhile.
 func (a *AuthProcess) SetEmailVerification(attempt uint64, email, code string) bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if attempt != a.attempt {
 		return false
 	}
-	a.Email, a.EmailVerificationCode = email, code
+	a.Email, a.EmailVerificationCode, a.EmailVerified = email, code, false
 	return true
+}
+
+// VerifyEmail marks the email of the attempt as verified if the email and the code are the ones
+// sent. It fails if a new attempt started meanwhile.
+func (a *AuthProcess) VerifyEmail(attempt uint64, email, code string) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if attempt != a.attempt || a.EmailVerificationCode == "" || email != a.Email ||
+		subtle.ConstantTimeCompare([]byte(code), []byte(a.EmailVerificationCode)) != 1 {
+		return false
+	}
+	a.EmailVerified = true
+	return true
+}
+
+// VerifiedEmail returns the email of the current attempt if it was verified, or "".
+func (a *AuthProcess) VerifiedEmail() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if !a.EmailVerified {
+		return ""
+	}
+	return a.Email
 }
 
 // EmailVerification returns the email to verify and its code in the current attempt.

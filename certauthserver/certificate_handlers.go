@@ -568,7 +568,7 @@ func (s *CertAuthServer) verifyEmailCodeAndPresentContractForm(c *fiber.Ctx) err
 	slog.Info("Email verification code verification requested", "email", email, "auth_code", authCode)
 
 	// Retrieve the Authentication Process object from the cache
-	authProcess, certData, _, err := s.getAcceptedCertificateProcess(authCode)
+	authProcess, certData, attempt, err := s.getAcceptedCertificateProcess(authCode)
 	if err != nil {
 		err := errl.Errorf("getAuthProcess: %w", err)
 		slog.Error(err.Error())
@@ -582,31 +582,15 @@ func (s *CertAuthServer) verifyEmailCodeAndPresentContractForm(c *fiber.Ctx) err
 		isEnglish = true
 	}
 
-	storedEmail, storedEmailVerificationCode := authProcess.EmailVerification()
-	if storedEmailVerificationCode == "" {
-		err := errl.Errorf("email verification code not found in authorization request")
-		slog.Error(err.Error(), "auth_code", authCode)
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": err.Error(),
-		})
-	}
-
-	// Verify the code
-	if emailVerificationCode != storedEmailVerificationCode {
+	// Verify the code: the email of this attempt is verified only if the email and the code match
+	if !authProcess.VerifyEmail(attempt, email, emailVerificationCode) {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid verification code",
 		})
 	}
+	storedEmail := email
 
 	slog.Info("Email verification code verified successfully", "email", email, "auth_code", authCode)
-
-	if storedEmail != email {
-		err := errl.Errorf("email mismatch in authorization request")
-		slog.Error(err.Error(), "auth_code", authCode)
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": err.Error(),
-		})
-	}
 
 	slog.Debug("Stored email", "email", storedEmail)
 
@@ -709,7 +693,13 @@ func (s *CertAuthServer) pagePresentContractForAcceptance(c *fiber.Ctx) error {
 	slog.Info("Email verification code verification requested", "email", formData.RepresentativeEmail, "auth_code", authCode)
 
 	// Sanity check, we already have an email and they have to be the same
-	storedEmail, _ := authProcess.EmailVerification()
+	// Only an email verified with its code in this attempt is accepted
+	storedEmail := authProcess.VerifiedEmail()
+	if storedEmail == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "The email has not been verified",
+		})
+	}
 	if storedEmail != formData.RepresentativeEmail {
 		err := errl.Errorf("email mismatch in authorization request")
 		slog.Error(err.Error(), "auth_code", authCode)
@@ -908,7 +898,13 @@ func (s *CertAuthServer) handleContractAccepted(c *fiber.Ctx) error {
 	slog.Info("Email verification code verification requested", "email", formData.RepresentativeEmail, "auth_code", authCode)
 
 	// Sanity check, we already have an email and they have to be the same
-	storedEmail, _ := authProcess.EmailVerification()
+	// Only an email verified with its code in this attempt is accepted
+	storedEmail := authProcess.VerifiedEmail()
+	if storedEmail == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "The email has not been verified",
+		})
+	}
 	if storedEmail != formData.RepresentativeEmail {
 		err := errl.Errorf("email mismatch in authorization request")
 		slog.Error(err.Error(), "auth_code", authCode)

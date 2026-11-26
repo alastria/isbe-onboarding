@@ -649,10 +649,64 @@ func TestCertificateChangedDuringValidation(t *testing.T) {
 	}
 }
 
-// setEmail records the verified email of the current attempt, as the email step does.
+// setEmail records the email of the current attempt verified with its code, as the email steps do.
 func setEmail(p *models.AuthProcess, email string) {
 	_, attempt, _ := p.CertificateResult()
-	p.SetEmailVerification(attempt, email, "")
+	p.SetEmailVerification(attempt, email, "123456")
+	p.VerifyEmail(attempt, email, "123456")
+}
+
+func TestContractRequiresAVerifiedEmail(t *testing.T) {
+	e := newTestEnv(t, types.PROFILE_ISBE_PRO, "")
+	cd := newCertData(t, testOrgID, true)
+	e.approve(t, cd)
+	form := func(p *models.AuthProcess) url.Values {
+		return url.Values{"auth_code": {p.Code}, "representative_email": {"user@example.com"}, "representative_name": {"Jane Doe"}}
+	}
+
+	// The email step stored the email and sent the code, but the code was never entered
+	for _, endpoint := range []string{presentContractForAcceptanceEndpoint, contractAcceptedEndpoint} {
+		p := e.newAuthProcess(cd, true, false)
+		_, attempt, _ := p.CertificateResult()
+		p.SetEmailVerification(attempt, "user@example.com", "123456")
+		resp, body := e.do(t, postForm(endpoint, form(p)))
+		if resp.StatusCode != fiber.StatusBadRequest || !strings.Contains(body, "not been verified") {
+			t.Fatalf("%s with an unverified email: status %d: %.200s", endpoint, resp.StatusCode, body)
+		}
+	}
+
+	// A wrong code, or the right code for another email, does not verify it
+	p := e.newAuthProcess(cd, true, false)
+	_, attempt, _ := p.CertificateResult()
+	p.SetEmailVerification(attempt, "user@example.com", "123456")
+	for _, v := range []url.Values{
+		{"auth_code": {p.Code}, "email": {"user@example.com"}, "verification_code": {"000000"}},
+		{"auth_code": {p.Code}, "email": {"other@example.com"}, "verification_code": {"123456"}},
+	} {
+		if resp, _ := e.do(t, postForm(verifyEmailCodeEndpoint, v)); resp.StatusCode != fiber.StatusBadRequest || p.VerifiedEmail() != "" {
+			t.Fatalf("email verified with %v", v)
+		}
+	}
+
+	// The right code verifies it, and the contract step goes on
+	e.do(t, postForm(verifyEmailCodeEndpoint, url.Values{"auth_code": {p.Code}, "email": {"user@example.com"}, "verification_code": {"123456"}}))
+	if p.VerifiedEmail() != "user@example.com" {
+		t.Fatalf("email not verified with the right code")
+	}
+	if _, body := e.do(t, postForm(presentContractForAcceptanceEndpoint, form(p))); !strings.Contains(body, testOrgID) {
+		t.Fatalf("contract step refused with a verified email: %.200s", body)
+	}
+
+	// Asking for another email, or a new certificate attempt, discards the verification
+	p.SetEmailVerification(attempt, "other@example.com", "654321")
+	if p.VerifiedEmail() != "" {
+		t.Fatalf("verification kept for a new email")
+	}
+	setEmail(p, "user@example.com")
+	p.SetCertificate(p.StartCertificateAttempt(), cd)
+	if p.VerifiedEmail() != "" || p.VerifyEmail(attempt, "user@example.com", "123456") {
+		t.Fatalf("verification kept or accepted for an earlier attempt")
+	}
 }
 
 func TestWalletLoginNotOverwrittenByAStaleCertificateRequest(t *testing.T) {

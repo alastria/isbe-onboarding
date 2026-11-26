@@ -149,3 +149,23 @@ func TestStaleRequestsDoNotModifyALaterAttempt(t *testing.T) {
 		t.Fatalf("a stale certificate request wrote after the wallet login")
 	}
 }
+
+func TestEmailVerificationBoundToTheAttempt(t *testing.T) {
+	p := &AuthProcess{}
+	attempt := p.StartCertificateAttempt()
+	p.SetEmailVerification(attempt, "user@example.com", "123456")
+	if p.VerifiedEmail() != "" {
+		t.Fatalf("email verified before entering the code")
+	}
+	if p.VerifyEmail(attempt, "user@example.com", "000000") || p.VerifyEmail(attempt, "other@example.com", "123456") ||
+		p.VerifyEmail(attempt+1, "user@example.com", "123456") || p.VerifiedEmail() != "" {
+		t.Fatalf("email verified with a wrong code, email or attempt")
+	}
+	if !p.VerifyEmail(attempt, "user@example.com", "123456") || p.VerifiedEmail() != "user@example.com" {
+		t.Fatalf("email not verified with the right code")
+	}
+	p.StartCertificateAttempt()
+	if p.VerifiedEmail() != "" || p.VerifyEmail(attempt, "user@example.com", "123456") {
+		t.Fatalf("verification of an earlier attempt kept")
+	}
+}
