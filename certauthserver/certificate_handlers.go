@@ -132,7 +132,7 @@ func (s *CertAuthServer) pageRequestEmail(c *fiber.Ctx) error {
 	slog.Info("======== PROFILE ========")
 
 	// Check if CertSec returned some error
-	certData, certErr := authProcess.CertificateResult()
+	certData, attempt, certErr := authProcess.CertificateResult()
 	certError := c.Query("error")
 	if certError != "" || certErr != nil {
 		err := certErr
@@ -152,7 +152,6 @@ func (s *CertAuthServer) pageRequestEmail(c *fiber.Ctx) error {
 
 	// The certificate data is shared with the other requests of this authentication and is never
 	// modified: the validation works on a copy, which replaces it once accepted
-	received := certData
 	validated := *certData
 	validated.EIDASCertificate = false
 	certData = &validated
@@ -224,8 +223,8 @@ func (s *CertAuthServer) pageRequestEmail(c *fiber.Ctx) error {
 	}
 
 	// The certificate is accepted with the result of its validation: the next steps of the flow are
-	// allowed for it, unless CertSec received another certificate meanwhile
-	if !authProcess.AcceptCertificate(received, certData) {
+	// allowed for it, unless a new attempt started meanwhile
+	if !authProcess.AcceptCertificate(attempt, certData) {
 		return errl.Errorf("the certificate changed during its validation")
 	}
 
@@ -271,7 +270,7 @@ func (s *CertAuthServer) pageRequestEmail(c *fiber.Ctx) error {
 		slog.Debug("bypass email validation", "code", authProcess.Code, "redirect_uri", authProcess.RedirectURI)
 
 		// Store email of the user in the authProcess struct
-		if !authProcess.CompleteCertificateFlow(certData, email, powers) {
+		if !authProcess.CompleteCertificateFlow(attempt, certData, email, powers) {
 			return errl.Errorf("the certificate changed during the authentication")
 		}
 
@@ -439,7 +438,7 @@ func (s *CertAuthServer) sendEmailVerification(c *fiber.Ctx) error {
 	authCode := c.FormValue("auth_code")
 
 	// Retrieve the Authentication Process object from the cache
-	authProcess, certData, err := s.getAcceptedCertificateProcess(authCode)
+	authProcess, certData, _, err := s.getAcceptedCertificateProcess(authCode)
 	if err != nil {
 		err := errl.Errorf("getAuthProcess: %w", err)
 		slog.Error(err.Error())
@@ -563,7 +562,7 @@ func (s *CertAuthServer) verifyEmailCodeAndPresentContractForm(c *fiber.Ctx) err
 	slog.Info("Email verification code verification requested", "email", email, "auth_code", authCode)
 
 	// Retrieve the Authentication Process object from the cache
-	authProcess, certData, err := s.getAcceptedCertificateProcess(authCode)
+	authProcess, certData, _, err := s.getAcceptedCertificateProcess(authCode)
 	if err != nil {
 		err := errl.Errorf("getAuthProcess: %w", err)
 		slog.Error(err.Error())
@@ -668,7 +667,7 @@ func (s *CertAuthServer) pagePresentContractForAcceptance(c *fiber.Ctx) error {
 	}
 
 	// Retrieve the Authentication Process object from the cache
-	authProcess, certData, err := s.getAcceptedCertificateProcess(authCode)
+	authProcess, certData, _, err := s.getAcceptedCertificateProcess(authCode)
 	if err != nil {
 		err := errl.Errorf("getAuthProcess: %w", err)
 		slog.Error(err.Error())
@@ -862,7 +861,7 @@ func (s *CertAuthServer) handleContractAccepted(c *fiber.Ctx) error {
 	}
 
 	// Retrieve the Authentication Process object from the cache
-	authProcess, certData, err := s.getAcceptedCertificateProcess(authCode)
+	authProcess, certData, attempt, err := s.getAcceptedCertificateProcess(authCode)
 	if err != nil {
 		err := errl.Errorf("getAuthProcess: %w", err)
 		slog.Error(err.Error())
@@ -1005,7 +1004,7 @@ func (s *CertAuthServer) handleContractAccepted(c *fiber.Ctx) error {
 	// Set SSO cookie
 	c.Cookie(ssoCookie)
 
-	if !authProcess.CompleteCertificateFlow(certData, storedEmail, powers) {
+	if !authProcess.CompleteCertificateFlow(attempt, certData, storedEmail, powers) {
 		return errl.Errorf("the certificate changed during the authentication")
 	}
 

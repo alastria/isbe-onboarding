@@ -60,8 +60,11 @@ type AuthProcess struct {
 	// The state shared by the concurrent requests of an authentication: CertificateData,
 	// ErrorInProcess, CredentialData and FinishedWalletAuth are written only through the methods
 	// below, under mu, together with the certificate that CertAuth accepted and the
-	// authentication that completed (the only one tokens are issued for).
+	// authentication that completed (the only one tokens are issued for). attempt identifies the
+	// current certificate attempt: the requests of one attempt share it, whatever copy of the
+	// certificate data they hold, and a new attempt invalidates the previous one.
 	mu                  sync.Mutex
+	attempt             uint64
 	acceptedCertificate *CertificateData
 	completed           *CompletedAuthentication
 }
@@ -75,66 +78,70 @@ type CompletedAuthentication struct {
 	Powers      string
 }
 
-// StartCertificateAttempt is called by CertSec when a certificate is presented: the previous
-// certificate, its error, its acceptance and any completed authentication no longer apply.
-func (a *AuthProcess) StartCertificateAttempt() {
+// StartCertificateAttempt starts a new certificate attempt, when CertSec receives a certificate:
+// the previous certificate, its error, its acceptance and any completed authentication no longer
+// apply. It returns the identifier of the new attempt.
+func (a *AuthProcess) StartCertificateAttempt() uint64 {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	a.attempt++
 	a.CertificateData, a.ErrorInProcess, a.acceptedCertificate, a.completed = nil, nil, nil, nil
 	a.CredentialData, a.FinishedWalletAuth = nil, false
+	return a.attempt
 }
 
-// FailCertificateAttempt records why CertSec rejected the certificate.
+// FailCertificateAttempt records why CertSec rejected the certificate of the current attempt.
 func (a *AuthProcess) FailCertificateAttempt(err error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.ErrorInProcess = err
 }
 
-// SetCertificate sets the certificate received by CertSec, not yet accepted by CertAuth.
+// SetCertificate sets the certificate received by CertSec in the current attempt.
 func (a *AuthProcess) SetCertificate(cd *CertificateData) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.CertificateData, a.acceptedCertificate, a.completed = cd, nil, nil
 }
 
-// CertificateResult returns the certificate received by CertSec, or why it was rejected.
-func (a *AuthProcess) CertificateResult() (*CertificateData, error) {
+// CertificateResult returns the certificate of the current attempt (the one received by CertSec,
+// or its validated copy once accepted), the attempt, and why CertSec rejected it, if it did.
+func (a *AuthProcess) CertificateResult() (*CertificateData, uint64, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return a.CertificateData, a.ErrorInProcess
+	return a.CertificateData, a.attempt, a.ErrorInProcess
 }
 
-// AcceptCertificate records that CertAuth validated the current certificate, replacing it with
-// validated, its copy carrying the result of the validation. It fails if current is no longer the
-// current certificate.
-func (a *AuthProcess) AcceptCertificate(current, validated *CertificateData) bool {
+// AcceptCertificate records that CertAuth validated the certificate of the attempt: validated,
+// a copy of it carrying the result of the validation, replaces the certificate data. It fails if
+// a new attempt started meanwhile. Several validations of the same attempt can be accepted.
+func (a *AuthProcess) AcceptCertificate(attempt uint64, validated *CertificateData) bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if current == nil || validated == nil || a.CertificateData != current {
+	if validated == nil || attempt != a.attempt || a.CertificateData == nil {
 		return false
 	}
 	a.CertificateData, a.acceptedCertificate = validated, validated
 	return true
 }
 
-// AcceptedCertificate returns the current certificate if CertAuth accepted it and its flow has
-// not completed yet, or nil. The steps of the certificate flow use it.
-func (a *AuthProcess) AcceptedCertificate() *CertificateData {
+// AcceptedCertificate returns the accepted certificate of the current attempt and the attempt, if
+// its flow has not completed yet, or nil. The steps of the certificate flow use it.
+func (a *AuthProcess) AcceptedCertificate() (*CertificateData, uint64) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if a.CertificateData == nil || a.acceptedCertificate != a.CertificateData || a.completed != nil {
-		return nil
+	if a.acceptedCertificate == nil || a.completed != nil {
+		return nil, 0
 	}
-	return a.CertificateData
+	return a.acceptedCertificate, a.attempt
 }
 
-// CompleteCertificateFlow records that the flow finished for cd, which must be the current and
-// accepted certificate, with the email and powers for the tokens.
-func (a *AuthProcess) CompleteCertificateFlow(cd *CertificateData, email, powers string) bool {
+// CompleteCertificateFlow records that the flow finished for cd, the accepted certificate of the
+// attempt, with the email and powers for the tokens. It fails if a new attempt started meanwhile.
+func (a *AuthProcess) CompleteCertificateFlow(attempt uint64, cd *CertificateData, email, powers string) bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if cd == nil || a.CertificateData != cd || a.acceptedCertificate != cd {
+	if cd == nil || attempt != a.attempt || a.acceptedCertificate == nil {
 		return false
 	}
 	a.completed = &CompletedAuthentication{Certificate: cd, Email: email, Powers: powers}
@@ -142,10 +149,11 @@ func (a *AuthProcess) CompleteCertificateFlow(cd *CertificateData, email, powers
 }
 
 // CompleteWalletAuthentication records the credential presented with the wallet. It replaces any
-// certificate attempt: the tokens are issued for the wallet authentication.
+// certificate attempt, which can no longer go on: the tokens are issued for the wallet.
 func (a *AuthProcess) CompleteWalletAuthentication(cred map[string]any) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	a.attempt++
 	a.CertificateData, a.ErrorInProcess, a.acceptedCertificate = nil, nil, nil
 	a.CredentialData, a.FinishedWalletAuth = cred, true
 	a.completed = &CompletedAuthentication{Credential: cred}

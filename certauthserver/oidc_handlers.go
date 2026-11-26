@@ -208,9 +208,10 @@ func (s *CertAuthServer) Authorization(c *fiber.Ctx) error {
 		slog.Debug("bypassing certificate selection", "code", authProcess.Code, "redirect_uri", authProcess.RedirectURI)
 
 		// Store certificate data, email of the user and powers in the authProcess struct
+		attempt := authProcess.StartCertificateAttempt()
 		authProcess.SetCertificate(ssoSession.CertificateData)
-		authProcess.AcceptCertificate(ssoSession.CertificateData, ssoSession.CertificateData)
-		authProcess.CompleteCertificateFlow(ssoSession.CertificateData, ssoSession.Email, ssoSession.Powers)
+		authProcess.AcceptCertificate(attempt, ssoSession.CertificateData)
+		authProcess.CompleteCertificateFlow(attempt, ssoSession.CertificateData, ssoSession.Email, ssoSession.Powers)
 
 		// And redirect back to the caller
 		redirectURL := fmt.Sprintf("%s?code=%s", authProcess.RedirectURI, authProcess.Code)
@@ -607,19 +608,19 @@ func (s *CertAuthServer) getAuthProcess(authCode string) (*models.AuthProcess, e
 
 }
 
-// getAcceptedCertificateProcess returns the authentication process and the certificate that
-// CertAuth accepted for it (see pageRequestEmail), which the later steps of the flow must use.
-// A manually approved certificate must still be approved.
-func (s *CertAuthServer) getAcceptedCertificateProcess(authCode string) (*models.AuthProcess, *models.CertificateData, error) {
+// getAcceptedCertificateProcess returns the authentication process, the certificate that CertAuth
+// accepted for it (see pageRequestEmail), which the later steps of the flow must use, and its
+// attempt. A manually approved certificate must still be approved.
+func (s *CertAuthServer) getAcceptedCertificateProcess(authCode string) (*models.AuthProcess, *models.CertificateData, uint64, error) {
 	authProcess, err := s.getAuthProcess(authCode)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, 0, err
 	}
-	certData := authProcess.AcceptedCertificate()
+	certData, attempt := authProcess.AcceptedCertificate()
 	if certData == nil || (certData.ManuallyApproved && !s.stillManuallyApproved(certData)) {
-		return nil, nil, errl.Errorf("the certificate has not been accepted for auth_code: %s", authCode)
+		return nil, nil, 0, errl.Errorf("the certificate has not been accepted for auth_code: %s", authCode)
 	}
-	return authProcess, certData, nil
+	return authProcess, certData, attempt, nil
 }
 
 // stillManuallyApproved reports whether a manually approved certificate is still valid and

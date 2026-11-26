@@ -162,12 +162,13 @@ func (e *testEnv) withdraw(t *testing.T, cd *models.CertificateData) {
 func (e *testEnv) newAuthProcess(cd *models.CertificateData, accepted, completed bool) *models.AuthProcess {
 	code := fmt.Sprintf("code-%d", time.Now().UnixNano())
 	p := &models.AuthProcess{Code: code, ClientID: testClientID, RedirectURI: testRedirectURL, Scopes: []string{"openid", "eidas"}}
+	attempt := p.StartCertificateAttempt()
 	p.SetCertificate(cd)
 	if accepted {
-		p.AcceptCertificate(cd, cd)
+		p.AcceptCertificate(attempt, cd)
 	}
 	if completed {
-		p.CompleteCertificateFlow(cd, "user@example.com", "")
+		p.CompleteCertificateFlow(attempt, cd, "user@example.com", "")
 	}
 	e.s.authprocCache.Set(code, p, time.Minute)
 	return p
@@ -225,7 +226,7 @@ func TestCertificateValidationInEveryProfile(t *testing.T) {
 					e.approve(t, cd)
 				}
 				p, body := e.certificateBack(t, cd)
-				acceptedCert := p.AcceptedCertificate()
+				acceptedCert, _ := p.AcceptedCertificate()
 				accepted := acceptedCert != nil
 				if calls.Load() != tc.dssCalls || accepted != tc.accepted(profile) || cd.EIDASCertificate {
 					t.Fatalf("dss_calls=%d accepted=%v received data modified=%v", calls.Load(), accepted, cd.EIDASCertificate)
@@ -254,7 +255,7 @@ func TestWithdrawnOrExpiredApprovalRejectedAfterCertSec(t *testing.T) {
 
 	for name, cd := range map[string]*models.CertificateData{"withdrawn": withdrawn, "expired": expired} {
 		p, body := e.certificateBack(t, cd)
-		if p.AcceptedCertificate() != nil || !strings.Contains(body, "no longer approved") {
+		if accepted, _ := p.AcceptedCertificate(); accepted != nil || !strings.Contains(body, "no longer approved") {
 			t.Fatalf("%s approval accepted", name)
 		}
 	}
@@ -274,6 +275,7 @@ func TestLaterStepsRequireAnAcceptedCertificate(t *testing.T) {
 
 	// Accepted for one certificate, then another one replaced it: refused as well
 	p = e.newAuthProcess(cd, true, false)
+	p.StartCertificateAttempt() // CertSec receives another certificate
 	p.SetCertificate(newCertData(t, testOrgID, true))
 	e.do(t, postForm(sendEmailVerificationEndpoint, url.Values{"auth_code": {p.Code}, "email": {"user@example.com"}}))
 	if p.Email != "" {
@@ -477,15 +479,15 @@ func TestTokensFollowTheCompletedMethod(t *testing.T) {
 	// The wallet, then a certificate attempt that does not complete: no tokens
 	p := e.newAuthProcess(nil, false, false)
 	p.CompleteWalletAuthentication(testCredential)
-	p.StartCertificateAttempt()
+	attempt := p.StartCertificateAttempt()
 	p.SetCertificate(cd)
 	if status, _ := e.exchange(t, p); status != fiber.StatusBadRequest {
 		t.Fatalf("wallet then unfinished certificate: status %d, want 400", status)
 	}
 
 	// The wallet, then a certificate flow that completes: certificate tokens
-	p.AcceptCertificate(cd, cd)
-	p.CompleteCertificateFlow(cd, "user@example.com", "")
+	p.AcceptCertificate(attempt, cd)
+	p.CompleteCertificateFlow(attempt, cd, "user@example.com", "")
 	if status, claims := e.exchange(t, p); status != fiber.StatusOK || !strings.Contains(claims, testOrgID) || strings.Contains(claims, "VATES-W00000000") {
 		t.Fatalf("wallet then certificate: status %d claims %s", status, claims)
 	}
@@ -547,5 +549,102 @@ func TestConcurrentRequestsOfOneAuthentication(t *testing.T) {
 			}
 		})
 		wg.Wait()
+	}
+}
+
+// slowDSS is an EU DSS that answers PASSED only when released, to hold requests in the middle of
+// the validation. entered receives a value for each request that reached it.
+func slowDSS(t *testing.T) (url string, entered chan struct{}, release chan struct{}) {
+	t.Helper()
+	entered, release = make(chan struct{}, 10), make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		entered <- struct{}{}
+		<-release
+		fmt.Fprint(w, `{"simpleCertificateReport":{"Certificate":{"Indication":"PASSED"},"ChainItem":[{"Indication":"PASSED"}]}}`)
+	}))
+	t.Cleanup(srv.Close)
+	return srv.URL, entered, release
+}
+
+// certificateBackAsync starts the certificate-back step and returns a channel with the page.
+func (e *testEnv) certificateBackAsync(t *testing.T, p *models.AuthProcess) chan string {
+	page := make(chan string, 1)
+	go func() {
+		_, body := e.do(t, httptest.NewRequest("GET", CertificateBackEndpoint+"?code="+p.Code, nil))
+		page <- body
+	}()
+	return page
+}
+
+func TestReloadDuringValidation(t *testing.T) {
+	dssURL, entered, release := slowDSS(t)
+	e := newTestEnv(t, types.PROFILE_ISBE_PRO, dssURL)
+	p := e.newAuthProcess(newCertData(t, "VATES-B00000000", false), false, false)
+
+	// Two loads of the same attempt validate at the same time: neither invalidates the other
+	first, second := e.certificateBackAsync(t, p), e.certificateBackAsync(t, p)
+	<-entered
+	<-entered
+	close(release)
+	for _, page := range []string{<-first, <-second} {
+		if !strings.Contains(page, `name="email"`) {
+			t.Fatalf("a load of the same attempt was rejected: %.200s", page)
+		}
+	}
+	if cd, _ := p.AcceptedCertificate(); cd == nil || !cd.EIDASCertificate {
+		t.Fatalf("certificate not accepted with its eIDAS result")
+	}
+}
+
+func TestLaterStepDuringReload(t *testing.T) {
+	dssURL, entered, release := slowDSS(t)
+	e := newTestEnv(t, types.PROFILE_ISBE_PRO, dssURL)
+	p := e.newAuthProcess(newCertData(t, "VATES-B00000000", false), false, false)
+
+	// The certificate is accepted
+	page := e.certificateBackAsync(t, p)
+	<-entered
+	release <- struct{}{}
+	<-page
+
+	// A reload validates it again while the contract step of the same attempt runs
+	reload := e.certificateBackAsync(t, p)
+	<-entered
+	p.Email = "user@example.com"
+	_, body := e.do(t, postForm(presentContractForAcceptanceEndpoint, url.Values{
+		"auth_code": {p.Code}, "representative_email": {p.Email}, "representative_name": {"Jane Doe"}}))
+	close(release)
+	if !strings.Contains(body, "VATES-B00000000") {
+		t.Fatalf("the contract step was invalidated by a reload of the same attempt")
+	}
+	if !strings.Contains(<-reload, `name="email"`) {
+		t.Fatalf("the reload was rejected")
+	}
+	if cd, attempt := p.AcceptedCertificate(); cd == nil || !p.CompleteCertificateFlow(attempt, cd, "user@example.com", "") {
+		t.Fatalf("the flow of the attempt can not complete after the reload")
+	}
+}
+
+func TestCertificateChangedDuringValidation(t *testing.T) {
+	dssURL, entered, release := slowDSS(t)
+	e := newTestEnv(t, types.PROFILE_ISBE_PRO, dssURL)
+	p := e.newAuthProcess(newCertData(t, "VATES-B00000000", false), false, false)
+
+	page := e.certificateBackAsync(t, p)
+	<-entered
+	// CertSec receives another certificate: a new attempt
+	other := newCertData(t, "VATES-B11111111", false)
+	p.StartCertificateAttempt()
+	p.SetCertificate(other)
+	close(release)
+
+	if body := <-page; strings.Contains(body, `name="email"`) {
+		t.Fatalf("the validation of the previous attempt was accepted")
+	}
+	if cd, _ := p.AcceptedCertificate(); cd != nil {
+		t.Fatalf("a certificate is accepted without its own validation")
+	}
+	if cd, _, _ := p.CertificateResult(); cd != other {
+		t.Fatalf("the certificate of the new attempt was replaced")
 	}
 }

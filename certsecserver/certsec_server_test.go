@@ -127,9 +127,10 @@ func (e *testEnv) authenticate(t *testing.T, header, b64der string) *models.Auth
 	t.Helper()
 	authProcess := &models.AuthProcess{Code: fmt.Sprintf("code-%d", time.Now().UnixNano())}
 	previous := &models.CertificateData{}
+	attempt := authProcess.StartCertificateAttempt()
 	authProcess.SetCertificate(previous)
-	authProcess.AcceptCertificate(previous, previous)
-	authProcess.CompleteCertificateFlow(previous, "", "")
+	authProcess.AcceptCertificate(attempt, previous)
+	authProcess.CompleteCertificateFlow(attempt, previous, "", "")
 	authProcess.FailCertificateAttempt(errors.New("previous attempt"))
 	e.cache.Set(authProcess.Code, authProcess, time.Minute)
 	return e.present(t, authProcess, header, b64der)
@@ -147,17 +148,22 @@ func (e *testEnv) present(t *testing.T, authProcess *models.AuthProcess, header,
 	if resp.StatusCode != 302 {
 		t.Fatalf("status %d, want 302", resp.StatusCode)
 	}
-	if _, err := authProcess.CertificateResult(); authProcess.AcceptedCertificate() != nil || authProcess.Completed() != nil ||
-		(err != nil && strings.Contains(err.Error(), "previous attempt")) {
+	if accepted, _ := authProcess.AcceptedCertificate(); accepted != nil || authProcess.Completed() != nil ||
+		strings.Contains(fmt.Sprint(certificateError(authProcess)), "previous attempt") {
 		t.Fatalf("CertSec must reset the previous certificate, error and completion")
 	}
 	return authProcess
 }
 
+func certificateError(p *models.AuthProcess) error {
+	_, _, err := p.CertificateResult()
+	return err
+}
+
 // result summarises what CertSec handed over: the rejection, or the organization and whether
 // the certificate is manually approved.
 func result(p *models.AuthProcess) string {
-	cd, err := p.CertificateResult()
+	cd, _, err := p.CertificateResult()
 	if err != nil {
 		return "rejected: " + err.Error()
 	}
@@ -252,7 +258,7 @@ func TestWhitelistErrorRejects(t *testing.T) {
 	cert, _ := testCert{orgID: "VATES-B00000000"}.build(t)
 	e.db.Close()
 	p := e.authenticate(t, header, cert)
-	if cd, _ := p.CertificateResult(); !strings.Contains(result(p), "checking approved certificate") || cd != nil {
+	if cd, _, _ := p.CertificateResult(); !strings.Contains(result(p), "checking approved certificate") || cd != nil {
 		t.Fatalf("got %q", result(p))
 	}
 }
