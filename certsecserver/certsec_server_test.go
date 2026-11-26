@@ -215,9 +215,15 @@ func TestCertificateAuthentication(t *testing.T) {
 			if tc.approved != "" {
 				e.approve(t, fp, tc.approved)
 			}
-			got := result(e.authenticate(t, header, cert))
+			p := e.authenticate(t, header, cert)
+			got := result(p)
 			if !strings.HasPrefix(got, tc.want) || !strings.Contains(got, wantErr[tc.name]) {
 				t.Fatalf("got %q, want %q %q", got, tc.want, wantErr[tc.name])
+			}
+			// Only this rejection is shown to the user as a certificate not authorized
+			notAuthorized := tc.name == "not approved without organizationIdentifier nor serialNumber"
+			if errors.Is(certificateError(p), models.ErrCertificateNotAuthorized) != notAuthorized {
+				t.Fatalf("certificate not authorized: want %v", notAuthorized)
 			}
 		})
 	}

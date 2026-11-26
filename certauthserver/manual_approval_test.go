@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	stdhtml "html"
 	"io"
 	"math/big"
 	"net/http"
@@ -721,5 +722,42 @@ func TestWalletLoginNotOverwrittenByAStaleCertificateRequest(t *testing.T) {
 
 	if status, claims := e.exchange(t, p); status != fiber.StatusOK || !strings.Contains(claims, "VATES-W00000000") {
 		t.Fatalf("wallet login lost: status %d claims %s", status, claims)
+	}
+}
+
+// A certificate without the ISBE identifiers and without a manual approval gets a clear message,
+// without technical details; other errors keep their message.
+func TestCertificateNotAuthorizedMessage(t *testing.T) {
+	e := newTestEnv(t, types.PROFILE_ISBE_PRO, "")
+	technical := "Both organizationIdentifier and serialNumber are empty"
+	cases := []struct {
+		path, err     string
+		notAuthorized bool
+		want          []string
+	}{
+		{CertificateBackEndpoint, technical, true, []string{"Certificado no autorizado",
+			"El certificado seleccionado no cumple los requisitos de identificación de ISBE y no dispone de una aprobación manual. Si considera que su certificado debería ser aceptado, póngase en contacto con el equipo de soporte de ISBE."}},
+		{CertificateBackEndpoint + "/en", technical, true, []string{"Certificate not authorized",
+			"The selected certificate does not meet the ISBE identification requirements and has not been manually approved. If you believe your certificate should be accepted, please contact the ISBE support team."}},
+		{CertificateBackEndpoint, "some other error", false, []string{"some other error"}},
+	}
+	for _, tc := range cases {
+		p := e.newAuthProcess(nil, false, false)
+		_, attempt, _ := p.CertificateResult()
+		err := errors.New(tc.err)
+		if tc.notAuthorized {
+			err = fmt.Errorf("retrieving certificate: %s: %w", tc.err, models.ErrCertificateNotAuthorized)
+		}
+		p.FailCertificateAttempt(attempt, err)
+		_, body := e.do(t, httptest.NewRequest("GET", tc.path+"?code="+p.Code+"&error=true", nil))
+		body = stdhtml.UnescapeString(body)
+		for _, want := range tc.want {
+			if !strings.Contains(body, want) {
+				t.Fatalf("%s %q: page without %q", tc.path, tc.err, want)
+			}
+		}
+		if tc.notAuthorized && (strings.Contains(body, technical) || strings.Contains(body, "not authorized:")) {
+			t.Fatalf("%s: technical details shown to the user", tc.path)
+		}
 	}
 }

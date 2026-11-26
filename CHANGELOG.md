@@ -26,6 +26,8 @@ y el proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - El identificador de organización del contrato procede siempre del certificado (o de su aprobación).
 - Al retirar una aprobación o caducar el certificado, su sesión SSO deja de reutilizarse y los
   procesos de autenticación abiertos no pueden continuar ni obtener tokens.
+- Un certificado sin `organizationIdentifier` ni `serialNumber` y sin aprobación manual muestra el
+  mensaje «Certificado no autorizado» (también en inglés); el detalle técnico queda en los logs.
 
 ## [1.0.0]
 

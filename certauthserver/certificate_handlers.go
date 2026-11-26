@@ -2,6 +2,7 @@ package certauth
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -137,6 +138,19 @@ func (s *CertAuthServer) pageRequestEmail(c *fiber.Ctx) error {
 	if certError != "" || certErr != nil {
 		err := certErr
 		slog.Error("Error:", "error", err)
+		// The technical details are logged above and not shown to the user
+		if errors.Is(err, models.ErrCertificateNotAuthorized) {
+			if isEnglish {
+				return s.htmlRender.Render(c, "error_en", fiber.Map{
+					"title":   "Certificate not authorized",
+					"message": "The selected certificate does not meet the ISBE identification requirements and has not been manually approved. If you believe your certificate should be accepted, please contact the ISBE support team.",
+				})
+			}
+			return s.htmlRender.Render(c, "error", fiber.Map{
+				"title":   "Certificado no autorizado",
+				"message": "El certificado seleccionado no cumple los requisitos de identificación de ISBE y no dispone de una aprobación manual. Si considera que su certificado debería ser aceptado, póngase en contacto con el equipo de soporte de ISBE.",
+			})
+		}
 		if isEnglish {
 			return s.htmlRender.Render(c, "error_en", fiber.Map{"message": err})
 		}

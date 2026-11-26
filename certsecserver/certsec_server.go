@@ -578,7 +578,7 @@ func (s *CertSecServer) handleCertificateAuth(c *fiber.Ctx) error {
 	// For testing we accept personal certificates, but we do not accept that both
 	// the organizationIdentifier and the serialNumber are empty.
 	if subject.OrganizationIdentifier == "" && subject.SerialNumber == "" {
-		return sendBackError(errl.Errorf("retrieving certificate: Both organizationIdentifier and serialNumber are empty"))
+		return sendBackError(errl.Errorf("retrieving certificate: Both organizationIdentifier and serialNumber are empty: %w", models.ErrCertificateNotAuthorized))
 	}
 
 	if subject.OrganizationIdentifier == "" {
