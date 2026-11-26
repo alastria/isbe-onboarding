@@ -9,15 +9,14 @@ y el proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ### Añadido
 
-- Aprobación manual de certificados (CS-407): con `MANUAL_CERTIFICATE_APPROVAL_ENABLED=true`, los
-  certificados de `approved_certificates` se aceptan para la organización aprobada como alternativa
-  a la validación eIDAS, sin consultar EU DSS. Nunca se marcan como eIDAS. Deshabilitada por defecto.
-- `CLIENT_CERT_HEADER`: única cabecera de la que se lee el certificado de cliente, obligatoria con
-  la aprobación manual.
+- Aprobación manual de certificados (CS-407): los certificados de `approved_certificates` se aceptan
+  para la organización aprobada como alternativa a la validación eIDAS, sin consultar EU DSS, en
+  todos los perfiles. Nunca se marcan como eIDAS.
 - El formulario del contrato pide el nombre del representante cuando el certificado no lo incluye.
 
 ### Cambiado
 
+- El certificado de cliente se lee solo de la cabecera `tls-client-certificate`, sin alternativa.
 - Los pasos posteriores del flujo y la emisión de tokens exigen que CertAuth haya aceptado el
   certificado y que el flujo haya terminado.
 - El identificador de organización del contrato procede siempre del certificado (o de su aprobación).

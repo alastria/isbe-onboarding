@@ -180,8 +180,8 @@ func (s *CertAuthServer) Authorization(c *fiber.Ctx) error {
 	}
 
 	// The SSO session of a manually approved certificate is only reused while the certificate is
-	// still approved for the same organization and the policy is enabled: withdrawing the approval
-	// ends the single sign-on at the next authorization.
+	// still valid and approved for the same organization: withdrawing the approval ends the
+	// single sign-on at the next authorization.
 	if ssoSession != nil && ssoSession.CertificateData != nil && ssoSession.CertificateData.ManuallyApproved &&
 		!s.stillManuallyApproved(ssoSession.CertificateData) {
 		slog.Warn("SSO session not reused: the certificate is no longer manually approved", "organization_identifier", ssoSession.CertificateData.OrganizationID)
@@ -620,10 +620,10 @@ func (s *CertAuthServer) getAcceptedCertificateProcess(authCode string) (*models
 }
 
 // stillManuallyApproved reports whether a manually approved certificate is still valid and
-// approved for the same organization, with the policy enabled. A whitelist error means no.
+// approved for the same organization. A whitelist error means no.
 func (s *CertAuthServer) stillManuallyApproved(certData *models.CertificateData) bool {
 	now := time.Now()
-	if !s.manualCertificateApprovalEnabled || certData.Certificate == nil ||
+	if certData.Certificate == nil ||
 		now.Before(certData.Certificate.NotBefore) || now.After(certData.Certificate.NotAfter) {
 		return false
 	}

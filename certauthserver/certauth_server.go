@@ -61,14 +61,6 @@ type ConfigCertAuth struct {
 
 	// The admin token used to authenticate the superadmin to the TMF server
 	TMFAdminToken string
-
-	// Accept the certificates of the approved_certificates whitelist as an alternative to the
-	// eIDAS validation (MANUAL_CERTIFICATE_APPROVAL_ENABLED). Disabled by default.
-	ManualCertificateApprovalEnabled bool
-
-	// The only HTTP header from which CertSec reads the client certificate (CLIENT_CERT_HEADER).
-	// Empty: the standard header and then the AWS one, as before.
-	ClientCertHeader string
 }
 
 // CertAuthServer represents the CertAuth server
@@ -122,9 +114,6 @@ type CertAuthServer struct {
 
 	// The admin token used to authenticate the superadmin in the TMF server
 	tmfAdminToken string
-
-	// Whether the manual certificate approval policy is enabled
-	manualCertificateApprovalEnabled bool
 }
 
 const templateDebug = true
@@ -235,7 +224,6 @@ func NewCertAuth(
 		tmfService:       tmfservice,
 		tmfAdminToken:    cfg.TMFAdminToken,
 	}
-	s.manualCertificateApprovalEnabled = cfg.ManualCertificateApprovalEnabled
 
 	// Register the health check endpoint
 	s.httpServer.Get("/health", func(c *fiber.Ctx) error {

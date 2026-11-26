@@ -177,7 +177,7 @@ func (s *CertAuthServer) pageRequestEmail(c *fiber.Ctx) error {
 	}
 
 	// Check that the certificate is a valid eIDAS one. A certificate manually approved in CertSec
-	// (MANUAL_CERTIFICATE_APPROVAL_ENABLED) is trusted without EU DSS and is never marked as eIDAS.
+	// (approved_certificates) is trusted without EU DSS and is never marked as eIDAS.
 	if certData.ManuallyApproved {
 		slog.Info("Certificate accepted by manual approval, without eIDAS validation", "auth_code", authCode, "organization_identifier", certData.OrganizationID)
 	} else if _, errService, errValidation := VerifyCertificate(certData.CertificateDER, s.euDSSURL); errService == nil && errValidation == nil {

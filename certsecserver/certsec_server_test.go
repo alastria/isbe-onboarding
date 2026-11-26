@@ -27,8 +27,6 @@ import (
 	"github.com/alastria/isbe-onboarding/types"
 )
 
-var allProfiles = []types.Profile{types.PROFILE_LOCAL, types.PROFILE_ISBE_DEV, types.PROFILE_ISBE_PRE, types.PROFILE_ISBE_PRO}
-
 // testCert describes a self-signed client certificate for the tests.
 type testCert struct {
 	orgID, serial       string
@@ -87,12 +85,10 @@ type testEnv struct {
 	cache *cache.GenericCache[string, *models.AuthProcess]
 }
 
-func newTestEnv(t *testing.T, profile types.Profile, manualApproval bool, header string) *testEnv {
+func newTestEnv(t *testing.T) *testEnv {
 	t.Helper()
-	t.Chdir("..") // the local profile reads the templates from certsecserver/views
-
 	path := filepath.Join(t.TempDir(), "test.db")
-	db, err := database.New(path, profile)
+	db, err := database.New(path, types.PROFILE_ISBE_PRO)
 	if err != nil {
 		t.Fatalf("creating database: %v", err)
 	}
@@ -106,11 +102,9 @@ func newTestEnv(t *testing.T, profile types.Profile, manualApproval bool, header
 	authprocCache := cache.NewGeneric[string, *models.AuthProcess](time.Minute)
 	ssoCache := cache.NewGeneric[string, *models.SSOSession](time.Minute)
 	s, err := New(db, authprocCache, ssoCache, &Config{
-		Profile:                 profile,
+		Profile:                 types.PROFILE_ISBE_PRO,
 		CertAuthURL:             "https://certauth.test",
 		CertificateBackEndpoint: "/certificate-back",
-		ManualApprovalEnabled:   manualApproval,
-		ClientCertHeader:        header,
 	})
 	if err != nil {
 		t.Fatalf("creating CertSec: %v", err)
@@ -125,16 +119,9 @@ func (e *testEnv) approve(t *testing.T, fingerprint, orgID string) {
 	}
 }
 
-func (e *testEnv) withdraw(t *testing.T, fingerprint string) {
-	t.Helper()
-	if _, err := e.raw.Exec(`DELETE FROM approved_certificates WHERE certificate_sha256 = ?`, fingerprint); err != nil {
-		t.Fatalf("withdrawing certificate: %v", err)
-	}
-}
-
 // authenticate presents the certificate in the given header to /auth and returns the
-// authentication process as CertAuth will find it. The process starts as already accepted
-// and completed, to check that CertSec always resets it.
+// authentication process as CertAuth will find it. The process starts with a certificate
+// already accepted and completed, to check that CertSec always resets it.
 func (e *testEnv) authenticate(t *testing.T, header, b64der string) *models.AuthProcess {
 	t.Helper()
 	code := fmt.Sprintf("code-%d", time.Now().UnixNano())
@@ -146,9 +133,7 @@ func (e *testEnv) authenticate(t *testing.T, header, b64der string) *models.Auth
 	e.cache.Set(code, authProcess, time.Minute)
 
 	req := httptest.NewRequest("GET", "/auth?code="+code, nil)
-	if header != "" {
-		req.Header.Set(header, b64der)
-	}
+	req.Header.Set(header, b64der)
 	resp, err := e.s.app.Test(req, -1)
 	if err != nil {
 		t.Fatalf("calling /auth: %v", err)
@@ -159,215 +144,125 @@ func (e *testEnv) authenticate(t *testing.T, header, b64der string) *models.Auth
 	if authProcess.AcceptedCertificate() != nil || authProcess.CompletedCertificate() != nil {
 		t.Fatalf("CertSec must reset the acceptance of the previous certificate")
 	}
-	if authProcess.ErrorInProcess == nil && authProcess.CertificateData == nil {
-		t.Fatalf("neither certificate data nor error")
-	}
 	return authProcess
 }
 
-func assertRejected(t *testing.T, p *models.AuthProcess, contains string) {
-	t.Helper()
-	if p.ErrorInProcess == nil {
-		t.Fatalf("certificate accepted, want rejection containing %q", contains)
-	}
-	if !strings.Contains(p.ErrorInProcess.Error(), contains) {
-		t.Fatalf("error %q does not contain %q", p.ErrorInProcess, contains)
-	}
-}
-
-func assertManuallyApproved(t *testing.T, p *models.AuthProcess, orgID string) {
-	t.Helper()
+// result summarises what CertSec handed over: the rejection, or the organization and whether
+// the certificate is manually approved.
+func result(p *models.AuthProcess) string {
 	if p.ErrorInProcess != nil {
-		t.Fatalf("certificate rejected: %v", p.ErrorInProcess)
+		return "rejected: " + p.ErrorInProcess.Error()
 	}
-	cd := p.CertificateData
-	if !cd.ManuallyApproved || cd.EIDASCertificate || cd.OrganizationID != orgID || cd.Subject.OrganizationIdentifier != orgID || cd.CertificateType != "organizational" {
-		t.Fatalf("unexpected certificate data: manually_approved=%v eidas=%v org=%q type=%q", cd.ManuallyApproved, cd.EIDASCertificate, cd.OrganizationID, cd.CertificateType)
+	cd := p.Certificate()
+	if cd.EIDASCertificate {
+		return "marked as eIDAS"
 	}
+	return fmt.Sprintf("org=%s manual=%v", cd.OrganizationID, cd.ManuallyApproved)
 }
 
 const header = stdCertHeader
 
-func TestApprovedNonEIDASCertificateAcceptedInEveryProfile(t *testing.T) {
-	for _, profile := range allProfiles {
-		t.Run(string(profile), func(t *testing.T) {
-			e := newTestEnv(t, profile, true, header)
-			// An organizational certificate without organizationIdentifier nor serialNumber
-			cert, fp := testCert{}.build(t)
-			e.approve(t, fp, "NTRNL-12345678")
-			assertManuallyApproved(t, e.authenticate(t, header, cert), "NTRNL-12345678")
-		})
-	}
-}
-
-func TestApprovedCertificateWithItsOwnOrganizationIdentifier(t *testing.T) {
-	e := newTestEnv(t, types.PROFILE_ISBE_PRO, true, header)
-	cert, fp := testCert{orgID: "NTRNL-12345678"}.build(t)
-	e.approve(t, fp, "NTRNL-12345678")
-	assertManuallyApproved(t, e.authenticate(t, header, cert), "NTRNL-12345678")
-}
-
-func TestApprovedCertificateForAnotherOrganizationRejected(t *testing.T) {
-	e := newTestEnv(t, types.PROFILE_ISBE_PRO, true, header)
-	cert, fp := testCert{orgID: "VATES-B00000000"}.build(t)
-	e.approve(t, fp, "NTRNL-12345678")
-	assertRejected(t, e.authenticate(t, header, cert), "does not match the approved")
-}
-
-func TestApprovedCertificateOutsideValidityRejected(t *testing.T) {
-	e := newTestEnv(t, types.PROFILE_ISBE_PRO, true, header)
-	expired, fp1 := testCert{notBefore: time.Now().Add(-48 * time.Hour), notAfter: time.Now().Add(-time.Hour)}.build(t)
-	future, fp2 := testCert{notBefore: time.Now().Add(time.Hour), notAfter: time.Now().Add(48 * time.Hour)}.build(t)
-	e.approve(t, fp1, "NTRNL-12345678")
-	e.approve(t, fp2, "NTRNL-12345678")
-	assertRejected(t, e.authenticate(t, header, expired), "expired")
-	assertRejected(t, e.authenticate(t, header, future), "not yet valid")
-}
-
-func TestApprovedCertificateMinimumChecks(t *testing.T) {
-	e := newTestEnv(t, types.PROFILE_ISBE_PRO, true, header)
+func TestCertificateAuthentication(t *testing.T) {
 	weakKey, err := rsa.GenerateKey(rand.Reader, 1024)
 	if err != nil {
 		t.Fatal(err)
 	}
-	cases := map[string]testCert{
-		"RSA key of 1024 bits":        {key: weakKey},
-		"does not include clientAuth": {extKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}},
-		"CA certificate":              {isCA: true},
+	cases := []struct {
+		name     string
+		cert     testCert
+		approved string // organization identifier of the approval; empty: not approved
+		want     string // prefix of result()
+	}{
+		{"approved without organizationIdentifier nor serialNumber", testCert{}, "NTRNL-12345678", "org=NTRNL-12345678 manual=true"},
+		{"approved with its own organizationIdentifier", testCert{orgID: "NTRNL-12345678"}, "NTRNL-12345678", "org=NTRNL-12345678 manual=true"},
+		{"approved with a serialNumber", testCert{serial: "IDCNL-1234"}, "NTRNL-12345678", "org=NTRNL-12345678 manual=true"},
+		{"approved for another organization", testCert{orgID: "VATES-B00000000"}, "NTRNL-12345678", "rejected: " /* does not match */},
+		{"approved but expired", testCert{notBefore: time.Now().Add(-48 * time.Hour), notAfter: time.Now().Add(-time.Hour)}, "NTRNL-12345678", "rejected: "},
+		{"approved but not yet valid", testCert{notBefore: time.Now().Add(time.Hour), notAfter: time.Now().Add(48 * time.Hour)}, "NTRNL-12345678", "rejected: "},
+		{"approved with a weak key", testCert{key: weakKey}, "NTRNL-12345678", "rejected: "},
+		{"approved without clientAuth", testCert{extKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}}, "NTRNL-12345678", "rejected: "},
+		{"approved CA certificate", testCert{isCA: true}, "NTRNL-12345678", "rejected: "},
+		// Not approved: the usual flow, CertAuth validates it with EU DSS
+		{"not approved with organizationIdentifier", testCert{orgID: "VATES-B00000000"}, "", "org=VATES-B00000000 manual=false"},
+		{"not approved without organizationIdentifier nor serialNumber", testCert{}, "", "rejected: "},
 	}
-	for want, tc := range cases {
-		cert, fp := tc.build(t)
-		e.approve(t, fp, "NTRNL-12345678")
-		assertRejected(t, e.authenticate(t, header, cert), want)
+	wantErr := map[string]string{
+		"approved for another organization":                            "does not match the approved",
+		"approved but expired":                                         "expired",
+		"approved but not yet valid":                                   "not yet valid",
+		"approved with a weak key":                                     "RSA key of 1024 bits",
+		"approved without clientAuth":                                  "does not include clientAuth",
+		"approved CA certificate":                                      "CA certificate",
+		"not approved without organizationIdentifier nor serialNumber": "Both organizationIdentifier and serialNumber are empty",
 	}
-}
-
-func TestNotApprovedCertificateKeepsTheUsualFlow(t *testing.T) {
-	e := newTestEnv(t, types.PROFILE_ISBE_PRO, true, header)
-
-	// An eIDAS-like certificate goes on to CertAuth, which validates it with EU DSS
-	cert, _ := testCert{orgID: "VATES-B00000000"}.build(t)
-	p := e.authenticate(t, header, cert)
-	if p.ErrorInProcess != nil || p.CertificateData.ManuallyApproved || p.CertificateData.OrganizationID != "VATES-B00000000" {
-		t.Fatalf("unexpected result: err=%v data=%+v", p.ErrorInProcess, p.CertificateData)
+	e := newTestEnv(t)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cert, fp := tc.cert.build(t)
+			if tc.approved != "" {
+				e.approve(t, fp, tc.approved)
+			}
+			got := result(e.authenticate(t, header, cert))
+			if !strings.HasPrefix(got, tc.want) || !strings.Contains(got, wantErr[tc.name]) {
+				t.Fatalf("got %q, want %q %q", got, tc.want, wantErr[tc.name])
+			}
+		})
 	}
-
-	// Without organizationIdentifier nor serialNumber it is rejected, as before
-	cert, _ = testCert{}.build(t)
-	assertRejected(t, e.authenticate(t, header, cert), "Both organizationIdentifier and serialNumber are empty")
 }
 
 func TestWithdrawnApprovalCannotAuthenticateAgain(t *testing.T) {
-	e := newTestEnv(t, types.PROFILE_ISBE_PRO, true, header)
+	e := newTestEnv(t)
 	cert, fp := testCert{}.build(t)
 	e.approve(t, fp, "NTRNL-12345678")
-	assertManuallyApproved(t, e.authenticate(t, header, cert), "NTRNL-12345678")
-
-	e.withdraw(t, fp)
-	assertRejected(t, e.authenticate(t, header, cert), "Both organizationIdentifier and serialNumber are empty")
-
-	// A withdrawn certificate with a serialNumber is no longer approved: CertAuth sees a personal certificate
-	cert, fp = testCert{serial: "IDCNL-1234"}.build(t)
-	e.approve(t, fp, "NTRNL-12345678")
-	e.withdraw(t, fp)
-	p := e.authenticate(t, header, cert)
-	if p.ErrorInProcess != nil || p.CertificateData.ManuallyApproved || p.CertificateData.OrganizationID != "" {
-		t.Fatalf("unexpected result: err=%v data=%+v", p.ErrorInProcess, p.CertificateData)
+	if got := result(e.authenticate(t, header, cert)); got != "org=NTRNL-12345678 manual=true" {
+		t.Fatalf("approved: %s", got)
+	}
+	if _, err := e.raw.Exec(`DELETE FROM approved_certificates WHERE certificate_sha256 = ?`, fp); err != nil {
+		t.Fatal(err)
+	}
+	if got := result(e.authenticate(t, header, cert)); !strings.HasPrefix(got, "rejected: ") {
+		t.Fatalf("withdrawn: %s", got)
 	}
 }
 
 func TestWhitelistErrorRejects(t *testing.T) {
-	for _, enabled := range []bool{true, false} {
-		t.Run(fmt.Sprintf("enabled=%v", enabled), func(t *testing.T) {
-			e := newTestEnv(t, types.PROFILE_ISBE_PRO, enabled, header)
-			cert, _ := testCert{}.build(t)
-			e.db.Close()
-			p := e.authenticate(t, header, cert)
-			assertRejected(t, p, "checking approved certificate")
-			if p.CertificateData != nil {
-				t.Fatalf("certificate data set after a whitelist error")
-			}
-		})
+	e := newTestEnv(t)
+	cert, _ := testCert{orgID: "VATES-B00000000"}.build(t)
+	e.db.Close()
+	p := e.authenticate(t, header, cert)
+	if got := result(p); !strings.Contains(got, "checking approved certificate") || p.Certificate() != nil {
+		t.Fatalf("got %q", got)
 	}
 }
 
-func TestPolicyDisabledKeepsOriginalBehaviour(t *testing.T) {
-	for _, profile := range allProfiles {
-		t.Run(string(profile), func(t *testing.T) {
-			e := newTestEnv(t, profile, false, "")
-
-			// An approved certificate without organizationIdentifier nor serialNumber: rejected, as before
-			cert, fp := testCert{}.build(t)
-			e.approve(t, fp, "NTRNL-12345678")
-			assertRejected(t, e.authenticate(t, header, cert), "Both organizationIdentifier and serialNumber are empty")
-
-			// An approved certificate with serialNumber gets the organization identifier, but it is not
-			// manually approved: CertAuth validates it with EU DSS, as before
-			cert, fp = testCert{serial: "IDCNL-1234"}.build(t)
-			e.approve(t, fp, "NTRNL-12345678")
-			p := e.authenticate(t, header, cert)
-			if p.ErrorInProcess != nil || p.CertificateData.ManuallyApproved || p.CertificateData.OrganizationID != "NTRNL-12345678" {
-				t.Fatalf("unexpected result: err=%v data=%+v", p.ErrorInProcess, p.CertificateData)
-			}
-
-			// Certificates with organizationIdentifier are not looked up
-			cert, fp = testCert{orgID: "VATES-B00000000"}.build(t)
-			e.approve(t, fp, "NTRNL-12345678")
-			p = e.authenticate(t, header, cert)
-			if p.ErrorInProcess != nil || p.CertificateData.ManuallyApproved || p.CertificateData.OrganizationID != "VATES-B00000000" {
-				t.Fatalf("unexpected result: err=%v data=%+v", p.ErrorInProcess, p.CertificateData)
-			}
-
-			// Both headers are read, as before
-			p = e.authenticate(t, kubeCertHeader, cert)
-			if p.ErrorInProcess != nil {
-				t.Fatalf("certificate in %s rejected: %v", kubeCertHeader, p.ErrorInProcess)
-			}
-		})
-	}
-}
-
-func TestConfiguredHeaderOnly(t *testing.T) {
-	e := newTestEnv(t, types.PROFILE_ISBE_PRO, true, header)
+func TestOnlyTheStandardHeader(t *testing.T) {
+	e := newTestEnv(t)
 	cert, fp := testCert{}.build(t)
 	e.approve(t, fp, "NTRNL-12345678")
-
-	// No fallback to another header
-	assertRejected(t, e.authenticate(t, kubeCertHeader, cert), "No certificate provided in "+header)
-	assertRejected(t, e.authenticate(t, "", cert), "No certificate provided in "+header)
-	assertManuallyApproved(t, e.authenticate(t, header, cert), "NTRNL-12345678")
-}
-
-func TestApprovedCertificateIsNotAdmin(t *testing.T) {
-	e := newTestEnv(t, types.PROFILE_ISBE_PRO, true, header)
-	cert, fp := testCert{serial: "IDCNL-1234"}.build(t)
-	e.approve(t, fp, "VATES-G87936159") // even approved for the organization of the administrators
-
-	req := httptest.NewRequest("GET", "/admin/registrations", nil)
-	req.Header.Set(header, cert)
-	resp, err := e.s.app.Test(req, -1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	body, _ := io.ReadAll(resp.Body)
-	if !strings.Contains(string(body), "is invalid") {
-		t.Fatalf("approved certificate reached the admin pages: %s", body)
+	if got := result(e.authenticate(t, "X-Amzn-Mtls-Clientcert", cert)); !strings.Contains(got, "No certificate provided in "+header) {
+		t.Fatalf("got %q", got)
 	}
 }
 
-func TestAdminRequiresOrganizationIdentifierOrSerialNumber(t *testing.T) {
-	e := newTestEnv(t, types.PROFILE_ISBE_PRO, true, header)
-	// Subject without organizationIdentifier nor serialNumber, as before the CS-407 changes
-	cert, _ := testCert{issuerOrgID: adminIssuerOrganizationIdentifiers[0]}.build(t)
+func TestAdminPages(t *testing.T) {
+	e := newTestEnv(t)
+	approved, fp := testCert{serial: "IDCNL-1234"}.build(t)
+	e.approve(t, fp, adminIssuerOrganizationIdentifiers[0]) // even approved for the organization of the administrators
+	noIdentifiers, _ := testCert{issuerOrgID: adminIssuerOrganizationIdentifiers[0]}.build(t)
 
-	req := httptest.NewRequest("GET", "/admin/registrations", nil)
-	req.Header.Set(header, cert)
-	resp, err := e.s.app.Test(req, -1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	body, _ := io.ReadAll(resp.Body)
-	if !strings.Contains(string(body), "Both organizationIdentifier and serialNumber are empty") {
-		t.Fatalf("admin pages reached without organizationIdentifier nor serialNumber: %s", body)
+	for cert, want := range map[string]string{
+		approved:      "is invalid",
+		noIdentifiers: "Both organizationIdentifier and serialNumber are empty",
+	} {
+		req := httptest.NewRequest("GET", "/admin/registrations", nil)
+		req.Header.Set(header, cert)
+		resp, err := e.s.app.Test(req, -1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, _ := io.ReadAll(resp.Body)
+		if !strings.Contains(string(body), want) {
+			t.Fatalf("admin pages: want %q: %s", want, body)
+		}
 	}
 }

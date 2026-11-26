@@ -47,15 +47,13 @@ The following environment variables can be used to override configuration values
 | `TSA_REVOCATION_CHECK` | `none` or `crl` | `none` |
 | `MANAGEMENT_URL` | Management Service URL | Profile dependent |
 | `CERTAUTH_LOGS_NOCOLOR` | Set to "true" to disable log coloring | `false` |
-| `MANUAL_CERTIFICATE_APPROVAL_ENABLED` | Set to "true" to accept the certificates of `approved_certificates` without eIDAS validation (see below) | `false` |
-| `CLIENT_CERT_HEADER` | The only header read for the client certificate. Required when the manual approval is enabled | Unset: `tls-client-certificate`, then `X-Amzn-Mtls-Clientcert` |
 
 ## Manually approved certificates
 
 Some organizations hold certificates that are not qualified eIDAS certificates, or that lack the
-usual attributes (`organizationIdentifier`, `serialNumber`). ISBE can approve such a certificate
-explicitly for one organization in the `approved_certificates` table. When the policy is enabled,
-that approval is a source of trust **alternative** to the eIDAS validation:
+usual attributes (`organizationIdentifier`, `serialNumber`). Adding such a certificate to the
+`approved_certificates` table is the only step to approve it for one organization, in every
+profile. The approval is a source of trust **alternative** to the eIDAS validation:
 
 | | eIDAS validation | Manual approval |
 |---|---|---|
@@ -63,29 +61,20 @@ that approval is a source of trust **alternative** to the eIDAS validation:
 | Organization | `organizationIdentifier` of the certificate | `organization_identifier` of the row (it must match the certificate, if the certificate has one) |
 | Checked by the application | Validity period, EU DSS (chain, qualification, revocation) | Validity period, key strength (RSA ≥ 2048, P-256/384/521, Ed25519), key usage (`digitalSignature`, `clientAuth` when present), not a CA |
 | Revocation | Checked by EU DSS | **Manual**: ISBE withdraws the approval |
-| Marked as eIDAS (`EIDASCertificate`) | Yes | Never |
+| Marked as eIDAS | Yes | Never |
 
-Certificates that are not approved follow the usual flow. Being approved never grants
-administration rights. If the whitelist cannot be queried, the certificate is rejected.
+Certificates that are not approved follow the usual eIDAS flow. Being approved never grants
+administration rights. If the whitelist cannot be queried, the certificate is rejected. Approve only
+certificates that cannot pass the eIDAS validation: an approved qualified certificate is not
+checked by EU DSS either.
 
-**Enabling it.** Set `MANUAL_CERTIFICATE_APPROVAL_ENABLED=true` and `CLIENT_CERT_HEADER` to the
-header that the reverse proxy of that deployment sets (`tls-client-certificate` with the Caddy
-configuration above). It is disabled by default and is enabled per environment. Before enabling it
-in production, check that:
-
-- the reverse proxy requires the client certificate in the TLS handshake (proof of possession of
-  the private key);
-- the reverse proxy always sets `CLIENT_CERT_HEADER` from that handshake, never forwards a value
-  sent by the client, and removes any other client certificate header;
-- the CertSec port can only be reached through that reverse proxy;
-- the manual revocation procedure below has been agreed.
-
-Approve only certificates that cannot pass the eIDAS validation. An approved qualified
-certificate is treated as manually approved: it is not checked by EU DSS (so its revocation
-becomes manual too) and it is shown as manually approved instead of eIDAS.
+**Infrastructure requirements.** The certificate is read only from the `tls-client-certificate`
+header. The reverse proxy must require the client certificate in the TLS handshake (proof of
+possession of the private key), always set that header from the handshake and never forward a
+value sent by the client, and the CertSec port must only be reachable through it.
 
 **Approving a certificate**, after verifying the identity of the organization out of band
-(`certificate_sha256` is the SHA-256 of the DER certificate, lowercase hex, e.g.
+(`certificate_sha256` is the SHA-256 of the DER certificate in lowercase hex, e.g.
 `openssl x509 -in cert.pem -outform DER | sha256sum`):
 
 ```sql
@@ -93,17 +82,18 @@ INSERT INTO approved_certificates (certificate_sha256, organization_identifier, 
 VALUES ('<sha256>', 'NTRNL-12345678', 'Approved by <who> on <date>: <how it was verified>');
 ```
 
-**Manual revocation.** ISBE does not check the revocation of approved certificates, so it has to
+**Manual revocation.** ISBE does not check the revocation of approved certificates, so it must
 withdraw the approval as soon as the certificate is compromised, revoked or no longer represents
 the organization:
 
-1. `DELETE FROM approved_certificates WHERE certificate_sha256 = '<sha256>';` on the live database.
-   From then on the certificate cannot authenticate again through the manual approval, an SSO
-   session opened with it is discarded at its next use, and an authentication process in progress
-   cannot go on to its next step nor obtain tokens. The same applies once the certificate expires.
-2. Limitations: the tokens already issued stay valid until they expire (the `token_expiry` of the
-   relying party), and a step already running when the approval is withdrawn finishes.
-3. The registration of the organization is not removed; deal with it separately if needed.
+```sql
+DELETE FROM approved_certificates WHERE certificate_sha256 = '<sha256>';
+```
+
+From then on (and also once the certificate expires) it cannot authenticate, its SSO session is
+discarded at its next use, and an authentication process in progress cannot continue nor obtain
+tokens. Tokens already issued stay valid until they expire, and the registration of the
+organization is not removed.
 
 ## Observability
 
@@ -181,7 +171,7 @@ certsec.mycredential.es {
 }
 ```
 
-- Caddy sends the certificate in an HTTP header (our default is `tls-client-certificate`).
+- Caddy sends the certificate in the HTTP header `tls-client-certificate`, the only one the application reads.
 - Our application receives the certificate, decodes it and extracts the user information from the certificate, mainly the Subject field.
 - For this application, we require the certificate to be an "organizational" certificate, that is, either a certificate for seals (QSeal), or a certificate of representation (a QSign where the user is associated to the organization that represents). In both certificates, the Subject field contains the `organizationIdentifier` (OID 2.5.4.97). For details, see the `x509util` package in this project.
 - Once this is done, the certsec.mycredential.eu server sends back to the certauth.mycredential.eu server the information about the user (essentially the fields in the Subject field of the certificate).

@@ -63,7 +63,7 @@ type testEnv struct {
 	raw *sql.DB
 }
 
-func newTestEnv(t *testing.T, profile types.Profile, manualApproval bool, dssURL string) *testEnv {
+func newTestEnv(t *testing.T, profile types.Profile, dssURL string) *testEnv {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "test.db")
 	db, err := database.New(path, profile)
@@ -89,15 +89,14 @@ func newTestEnv(t *testing.T, profile types.Profile, manualApproval bool, dssURL
 		t.Fatal(err)
 	}
 	s := &CertAuthServer{
-		httpServer:                       fiber.New(),
-		profile:                          profile,
-		euDSSURL:                         dssURL,
-		db:                               db,
-		jwtService:                       jwtService,
-		htmlRender:                       htmlRender,
-		ssoCache:                         cache.NewGeneric[string, *models.SSOSession](time.Minute),
-		authprocCache:                    cache.NewGeneric[string, *models.AuthProcess](time.Minute),
-		manualCertificateApprovalEnabled: manualApproval,
+		httpServer:    fiber.New(),
+		profile:       profile,
+		euDSSURL:      dssURL,
+		db:            db,
+		jwtService:    jwtService,
+		htmlRender:    htmlRender,
+		ssoCache:      cache.NewGeneric[string, *models.SSOSession](time.Minute),
+		authprocCache: cache.NewGeneric[string, *models.AuthProcess](time.Minute),
 	}
 	s.registerOIDCHandlers()
 	s.registerCertificateHandlers()
@@ -200,7 +199,7 @@ func TestManuallyApprovedCertificateDoesNotDependOnEUDSS(t *testing.T) {
 	for _, profile := range allProfiles {
 		t.Run(string(profile), func(t *testing.T) {
 			dssURL, calls := fakeDSS(t, "") // EU DSS is down
-			e := newTestEnv(t, profile, true, dssURL)
+			e := newTestEnv(t, profile, dssURL)
 			p, body := e.certificateBack(t, newCertData(t, testOrgID, true))
 			if calls.Load() != 0 {
 				t.Fatalf("EU DSS called %d times for a manually approved certificate", calls.Load())
@@ -219,7 +218,7 @@ func TestEIDASCertificateUsualBehaviour(t *testing.T) {
 	for _, profile := range allProfiles {
 		t.Run(string(profile), func(t *testing.T) {
 			dssURL, calls := fakeDSS(t, "PASSED")
-			e := newTestEnv(t, profile, true, dssURL)
+			e := newTestEnv(t, profile, dssURL)
 			p, _ := e.certificateBack(t, newCertData(t, "VATES-B00000000", false))
 			if calls.Load() != 1 || !(p.AcceptedCertificate() != nil) || !p.CertificateData.EIDASCertificate {
 				t.Fatalf("dss_calls=%d accepted=%v eidas=%v", calls.Load(), (p.AcceptedCertificate() != nil), p.CertificateData.EIDASCertificate)
@@ -232,7 +231,7 @@ func TestNotApprovedNonEIDASCertificateUsualBehaviour(t *testing.T) {
 	for _, profile := range allProfiles {
 		t.Run(string(profile), func(t *testing.T) {
 			dssURL, calls := fakeDSS(t, "FAILED")
-			e := newTestEnv(t, profile, true, dssURL)
+			e := newTestEnv(t, profile, dssURL)
 			p, _ := e.certificateBack(t, newCertData(t, "VATES-B00000000", false))
 			// Rejected in production, accepted in test/demo mode elsewhere, as before
 			wantAccepted := profile != types.PROFILE_ISBE_PRO
@@ -244,7 +243,7 @@ func TestNotApprovedNonEIDASCertificateUsualBehaviour(t *testing.T) {
 }
 
 func TestLaterStepsRequireAnAcceptedCertificate(t *testing.T) {
-	e := newTestEnv(t, types.PROFILE_ISBE_PRO, true, "")
+	e := newTestEnv(t, types.PROFILE_ISBE_PRO, "")
 	cd := newCertData(t, testOrgID, true)
 	e.approve(t, cd)
 
@@ -276,7 +275,7 @@ func TestLaterStepsRequireAnAcceptedCertificate(t *testing.T) {
 }
 
 func TestTokensOnlyAfterAcceptedAndCompletedFlow(t *testing.T) {
-	e := newTestEnv(t, types.PROFILE_ISBE_PRO, true, "")
+	e := newTestEnv(t, types.PROFILE_ISBE_PRO, "")
 	cases := []struct {
 		accepted, completed bool
 		wantStatus          int
@@ -327,7 +326,7 @@ func (e *testEnv) authorizeWithSSO(t *testing.T, cd *models.CertificateData) boo
 }
 
 func TestSSOSessionOfWithdrawnApprovalNotReused(t *testing.T) {
-	e := newTestEnv(t, types.PROFILE_ISBE_PRO, true, "")
+	e := newTestEnv(t, types.PROFILE_ISBE_PRO, "")
 	cd := newCertData(t, testOrgID, true)
 	if _, err := e.raw.Exec(`INSERT INTO approved_certificates (certificate_sha256, organization_identifier) VALUES (?, ?)`, fingerprint(cd), testOrgID); err != nil {
 		t.Fatal(err)
@@ -358,19 +357,8 @@ func TestSSOSessionOfWithdrawnApprovalNotReused(t *testing.T) {
 	}
 }
 
-func TestSSOSessionOfApprovedCertificateNotReusedWhenPolicyDisabled(t *testing.T) {
-	e := newTestEnv(t, types.PROFILE_ISBE_PRO, false, "")
-	cd := newCertData(t, testOrgID, true)
-	if _, err := e.raw.Exec(`INSERT INTO approved_certificates (certificate_sha256, organization_identifier) VALUES (?, ?)`, fingerprint(cd), testOrgID); err != nil {
-		t.Fatal(err)
-	}
-	if e.authorizeWithSSO(t, cd) {
-		t.Fatalf("SSO session of a manually approved certificate reused with the policy disabled")
-	}
-}
-
 func TestWithdrawalStopsOpenAuthenticationProcesses(t *testing.T) {
-	e := newTestEnv(t, types.PROFILE_ISBE_PRO, true, "")
+	e := newTestEnv(t, types.PROFILE_ISBE_PRO, "")
 	token := func(p *models.AuthProcess) int {
 		resp, _ := e.do(t, postForm(token_endpoint, url.Values{"grant_type": {"authorization_code"}, "code": {p.Code}, "client_id": {testClientID}}))
 		return resp.StatusCode
@@ -419,7 +407,7 @@ func TestWithdrawalStopsOpenAuthenticationProcesses(t *testing.T) {
 }
 
 func TestSSOSessionOfExpiredApprovedCertificateNotReused(t *testing.T) {
-	e := newTestEnv(t, types.PROFILE_ISBE_PRO, true, "")
+	e := newTestEnv(t, types.PROFILE_ISBE_PRO, "")
 	cd := newCertData(t, testOrgID, true)
 	e.approve(t, cd)
 	cd.Certificate.NotAfter = time.Now().Add(-time.Minute) // expired after the session was opened

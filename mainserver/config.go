@@ -387,11 +387,6 @@ func LoadConfig() (*Config, string, error) {
 	// Check for override of the DSS (Digital Signature Services) URL
 	cfg.CertAuthConfig.EUDSSURL = GetStringEnvOrDefault("DSS_URL", cfg.CertAuthConfig.EUDSSURL)
 
-	// Manual certificate approval policy and the header carrying the client certificate
-	if err := configureManualApproval(cfg.CertAuthConfig, os.Getenv); err != nil {
-		return nil, "", err
-	}
-
 	// Check for override of the email service config
 	cfg.CertAuthConfig.EmailConfig.IMAP = GetStringEnvOrDefault("EMAIL_IMAP", cfg.CertAuthConfig.EmailConfig.IMAP)
 	cfg.CertAuthConfig.EmailConfig.SMTP = GetStringEnvOrDefault("EMAIL_SMTP", cfg.CertAuthConfig.EmailConfig.SMTP)
@@ -456,19 +451,6 @@ func configureTSA(tsaCfg *tsaservice.TSAConfig, profile types.Profile, getenv fu
 	if tsaCfg.TSAUser == "" || tsaCfg.TSAPassword == "" {
 		return errl.Errorf("TSA user and password required (TSA_USER/TSA_PASSWORD, TSA_USER_FILE/TSA_PASSWORD_FILE or secrets/config.yaml)")
 	}
-	return nil
-}
-
-// configureManualApproval reads MANUAL_CERTIFICATE_APPROVAL_ENABLED (disabled unless "true") and
-// CLIENT_CERT_HEADER. The policy relies on the certificate header set by the reverse proxy, so
-// enabling it requires naming that single header explicitly: there is no fallback between headers.
-func configureManualApproval(cfg *certauth.ConfigCertAuth, getenv func(string) string) error {
-	cfg.ClientCertHeader = strings.TrimSpace(getenv("CLIENT_CERT_HEADER"))
-	cfg.ManualCertificateApprovalEnabled = strings.EqualFold(strings.TrimSpace(getenv("MANUAL_CERTIFICATE_APPROVAL_ENABLED")), "true")
-	if cfg.ManualCertificateApprovalEnabled && cfg.ClientCertHeader == "" {
-		return errl.Errorf("CLIENT_CERT_HEADER is required when MANUAL_CERTIFICATE_APPROVAL_ENABLED=true")
-	}
-	slog.Info("Manual certificate approval", "enabled", cfg.ManualCertificateApprovalEnabled, "client_cert_header", cfg.ClientCertHeader)
 	return nil
 }
 

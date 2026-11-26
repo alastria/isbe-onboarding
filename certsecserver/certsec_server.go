@@ -33,8 +33,9 @@ import (
 	"github.com/alastria/isbe-onboarding/types"
 )
 
+// The only header carrying the client certificate, set by the reverse proxy (Caddy) from the
+// TLS handshake. There is no fallback to any other header.
 const stdCertHeader = "tls-client-certificate"
-const kubeCertHeader = "X-Amzn-Mtls-Clientcert"
 
 const templateDirectory = "certsecserver/views"
 const templateExtension = ".hbs"
@@ -53,12 +54,6 @@ type Config struct {
 	// The URL of the CertAuth server, used to redirect the user back to the CertAuth server
 	CertAuthURL             string
 	CertificateBackEndpoint string
-
-	// Accept the certificates of the approved_certificates whitelist without the eIDAS validation
-	ManualApprovalEnabled bool
-
-	// The only header carrying the client certificate. Empty: stdCertHeader, then kubeCertHeader.
-	ClientCertHeader string
 }
 
 // CertSecServer represents the CertSec certificate authentication server
@@ -93,12 +88,6 @@ type CertSecServer struct {
 
 	// The TMF client
 	tmfClient *tmfservice.TMFService
-
-	// Whether the manual certificate approval policy is enabled
-	manualApprovalEnabled bool
-
-	// The only header carrying the client certificate, if configured
-	clientCertHeader string
 }
 
 //go:embed views/*
@@ -154,8 +143,6 @@ func New(
 		CertSecPort:             cfg.CertSecPort,
 		htmlRender:              htmlrender,
 		tmfClient:               tmfClient,
-		manualApprovalEnabled:   cfg.ManualApprovalEnabled,
-		clientCertHeader:        cfg.ClientCertHeader,
 	}
 
 	s.app.Get("/health", func(c *fiber.Ctx) error {
@@ -434,22 +421,12 @@ func (s *CertSecServer) retrieveCertificate(c *fiber.Ctx) (
 	subject *x509util.ELSIName,
 	b64der string,
 	err error) {
-	// Read the certificate from the header configured for this deployment, without fallback,
-	// or else check both the std and kube cert headers, as before
-	headers := []string{stdCertHeader, kubeCertHeader}
-	if s.clientCertHeader != "" {
-		headers = []string{s.clientCertHeader}
-	}
-	var certFromHeader string
-	for _, header := range headers {
-		if certFromHeader = c.Get(header); certFromHeader != "" {
-			slog.Debug("Certificate data found in header", "header", header, "cert_length", len(certFromHeader))
-			break
-		}
-	}
+	// The certificate is only read from the header set by the reverse proxy, without fallback
+	certFromHeader := c.Get(stdCertHeader)
 	if certFromHeader == "" {
-		return nil, nil, nil, "", errl.Errorf("No certificate provided in %s", strings.Join(headers, " nor in "))
+		return nil, nil, nil, "", errl.Errorf("No certificate provided in %s", stdCertHeader)
 	}
+	slog.Debug("Certificate data found in standard header", "header", stdCertHeader, "cert_length", len(certFromHeader))
 
 	// Check that we received enough data
 	if len(certFromHeader) < 100 {
@@ -579,21 +556,16 @@ func (s *CertSecServer) handleCertificateAuth(c *fiber.Ctx) error {
 		return sendBackError(errl.Errorf("retrieving certificate: %w", err))
 	}
 
-	// Look up the approved_certificates whitelist: always when the manual approval policy is
-	// enabled, and otherwise only for certificates without organizationIdentifier, as before.
-	// A failure of the lookup rejects the certificate.
+	// Look up the approved_certificates whitelist. A failure of the lookup rejects the certificate.
 	fingerprint := fmt.Sprintf("%x", sha256.Sum256(cert.Raw))
-	approvedID := ""
-	if s.manualApprovalEnabled || subject.OrganizationIdentifier == "" {
-		approvedID, err = s.db.GetApprovedOrganizationIdentifier(fingerprint)
-		if err != nil {
-			return sendBackError(errl.Errorf("checking approved certificate: %w", err))
-		}
+	approvedID, err := s.db.GetApprovedOrganizationIdentifier(fingerprint)
+	if err != nil {
+		return sendBackError(errl.Errorf("checking approved certificate: %w", err))
 	}
 
-	// With the policy enabled, an approved certificate is trusted for its approved organization
-	// instead of being validated as eIDAS by CertAuth (no EU DSS, CA chain or CRL checks).
-	manuallyApproved := s.manualApprovalEnabled && approvedID != ""
+	// An approved certificate is trusted for its approved organization instead of being validated
+	// as eIDAS by CertAuth (no EU DSS, CA chain or CRL checks)
+	manuallyApproved := approvedID != ""
 	if manuallyApproved {
 		if err := checkApprovedCertificate(cert, subject, approvedID); err != nil {
 			return sendBackError(errl.Errorf("approved certificate %s: %w", fingerprint, err))
@@ -608,15 +580,8 @@ func (s *CertSecServer) handleCertificateAuth(c *fiber.Ctx) error {
 		return sendBackError(errl.Errorf("retrieving certificate: Both organizationIdentifier and serialNumber are empty"))
 	}
 
-	// Certificates without organizationIdentifier can be manually approved to act on behalf of an organization.
-	// In that case we set the approved identifier, so the rest of the flow treats it as an organizational certificate.
 	if subject.OrganizationIdentifier == "" {
-		if approvedID != "" {
-			slog.Info("Using approved organization identifier", "auth_code", authCode, "certificate_sha256", fingerprint, "organization_identifier", approvedID)
-			subject.OrganizationIdentifier = approvedID
-		} else {
-			slog.Info("Certificate without organization identifier", "auth_code", authCode, "certificate_sha256", fingerprint, "organization", subject.Organization)
-		}
+		slog.Info("Certificate without organization identifier", "auth_code", authCode, "certificate_sha256", fingerprint, "organization", subject.Organization)
 	}
 
 	// Determine certificate type
