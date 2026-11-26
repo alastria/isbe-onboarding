@@ -21,7 +21,8 @@ y el proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - Los pasos posteriores del flujo y la emisión de tokens exigen que CertAuth haya aceptado el
   certificado y que el flujo haya terminado.
 - El identificador de organización del contrato procede siempre del certificado (o de su aprobación).
-- Al retirar una aprobación, la sesión SSO del certificado deja de reutilizarse.
+- Al retirar una aprobación o caducar el certificado, su sesión SSO deja de reutilizarse y los
+  procesos de autenticación abiertos no pueden continuar ni obtener tokens.
 
 ## [1.0.0]
 

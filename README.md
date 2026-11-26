@@ -80,6 +80,10 @@ in production, check that:
 - the CertSec port can only be reached through that reverse proxy;
 - the manual revocation procedure below has been agreed.
 
+Approve only certificates that cannot pass the eIDAS validation. An approved qualified
+certificate is treated as manually approved: it is not checked by EU DSS (so its revocation
+becomes manual too) and it is shown as manually approved instead of eIDAS.
+
 **Approving a certificate**, after verifying the identity of the organization out of band
 (`certificate_sha256` is the SHA-256 of the DER certificate, lowercase hex, e.g.
 `openssl x509 -in cert.pem -outform DER | sha256sum`):
@@ -94,12 +98,11 @@ withdraw the approval as soon as the certificate is compromised, revoked or no l
 the organization:
 
 1. `DELETE FROM approved_certificates WHERE certificate_sha256 = '<sha256>';` on the live database.
-   From then on the certificate cannot authenticate again through the manual approval, and an SSO
-   session opened with it is discarded at its next use.
-2. Limitations: an authentication process that already accepted the certificate can still finish
-   (up to 15 minutes), and the tokens already issued stay valid until they expire (the
-   `token_expiry` of the relying party). Restarting the service ends every
-   SSO session and authentication process in progress, as they are kept in memory.
+   From then on the certificate cannot authenticate again through the manual approval, an SSO
+   session opened with it is discarded at its next use, and an authentication process in progress
+   cannot go on to its next step nor obtain tokens. The same applies once the certificate expires.
+2. Limitations: the tokens already issued stay valid until they expire (the `token_expiry` of the
+   relying party), and a step already running when the approval is withdrawn finishes.
 3. The registration of the organization is not removed; deal with it separately if needed.
 
 ## Observability
