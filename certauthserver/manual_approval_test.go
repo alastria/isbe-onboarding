@@ -144,12 +144,29 @@ func fingerprint(cd *models.CertificateData) string {
 	return fmt.Sprintf("%x", sha256.Sum256(cd.Certificate.Raw))
 }
 
+func (e *testEnv) approve(t *testing.T, cd *models.CertificateData) {
+	t.Helper()
+	if _, err := e.raw.Exec(`INSERT INTO approved_certificates (certificate_sha256, organization_identifier) VALUES (?, ?)`, fingerprint(cd), cd.OrganizationID); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func (e *testEnv) withdraw(t *testing.T, cd *models.CertificateData) {
+	t.Helper()
+	if _, err := e.raw.Exec(`DELETE FROM approved_certificates WHERE certificate_sha256 = ?`, fingerprint(cd)); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func (e *testEnv) newAuthProcess(cd *models.CertificateData, accepted, completed bool) *models.AuthProcess {
 	code := fmt.Sprintf("code-%d", time.Now().UnixNano())
-	p := &models.AuthProcess{Code: code, ClientID: testClientID, RedirectURI: testRedirectURL, Scopes: []string{"openid", "eidas"},
-		CertificateData: cd, CertificateFlowCompleted: completed}
+	p := &models.AuthProcess{Code: code, ClientID: testClientID, RedirectURI: testRedirectURL, Scopes: []string{"openid", "eidas"}}
+	p.SetCertificate(cd)
 	if accepted {
-		p.AcceptedCertificate = cd
+		p.AcceptCertificate(cd)
+	}
+	if completed {
+		p.CompleteCertificateFlow(cd)
 	}
 	e.s.authprocCache.Set(code, p, time.Minute)
 	return p
@@ -188,8 +205,8 @@ func TestManuallyApprovedCertificateDoesNotDependOnEUDSS(t *testing.T) {
 			if calls.Load() != 0 {
 				t.Fatalf("EU DSS called %d times for a manually approved certificate", calls.Load())
 			}
-			if !p.CertificateAccepted() || p.CertificateData.EIDASCertificate {
-				t.Fatalf("accepted=%v eidas=%v, want accepted and not eIDAS", p.CertificateAccepted(), p.CertificateData.EIDASCertificate)
+			if !(p.AcceptedCertificate() != nil) || p.CertificateData.EIDASCertificate {
+				t.Fatalf("accepted=%v eidas=%v, want accepted and not eIDAS", (p.AcceptedCertificate() != nil), p.CertificateData.EIDASCertificate)
 			}
 			if !strings.Contains(body, "aprobado manualmente") {
 				t.Fatalf("the page does not say that the certificate was manually approved")
@@ -204,8 +221,8 @@ func TestEIDASCertificateUsualBehaviour(t *testing.T) {
 			dssURL, calls := fakeDSS(t, "PASSED")
 			e := newTestEnv(t, profile, true, dssURL)
 			p, _ := e.certificateBack(t, newCertData(t, "VATES-B00000000", false))
-			if calls.Load() != 1 || !p.CertificateAccepted() || !p.CertificateData.EIDASCertificate {
-				t.Fatalf("dss_calls=%d accepted=%v eidas=%v", calls.Load(), p.CertificateAccepted(), p.CertificateData.EIDASCertificate)
+			if calls.Load() != 1 || !(p.AcceptedCertificate() != nil) || !p.CertificateData.EIDASCertificate {
+				t.Fatalf("dss_calls=%d accepted=%v eidas=%v", calls.Load(), (p.AcceptedCertificate() != nil), p.CertificateData.EIDASCertificate)
 			}
 		})
 	}
@@ -219,8 +236,8 @@ func TestNotApprovedNonEIDASCertificateUsualBehaviour(t *testing.T) {
 			p, _ := e.certificateBack(t, newCertData(t, "VATES-B00000000", false))
 			// Rejected in production, accepted in test/demo mode elsewhere, as before
 			wantAccepted := profile != types.PROFILE_ISBE_PRO
-			if calls.Load() != 1 || p.CertificateAccepted() != wantAccepted || p.CertificateData.EIDASCertificate {
-				t.Fatalf("dss_calls=%d accepted=%v eidas=%v", calls.Load(), p.CertificateAccepted(), p.CertificateData.EIDASCertificate)
+			if calls.Load() != 1 || (p.AcceptedCertificate() != nil) != wantAccepted || p.CertificateData.EIDASCertificate {
+				t.Fatalf("dss_calls=%d accepted=%v eidas=%v", calls.Load(), (p.AcceptedCertificate() != nil), p.CertificateData.EIDASCertificate)
 			}
 		})
 	}
@@ -229,6 +246,7 @@ func TestNotApprovedNonEIDASCertificateUsualBehaviour(t *testing.T) {
 func TestLaterStepsRequireAnAcceptedCertificate(t *testing.T) {
 	e := newTestEnv(t, types.PROFILE_ISBE_PRO, true, "")
 	cd := newCertData(t, testOrgID, true)
+	e.approve(t, cd)
 
 	// Not accepted (e.g. CertSec received another certificate): the email step refuses it
 	p := e.newAuthProcess(cd, false, false)
@@ -239,7 +257,7 @@ func TestLaterStepsRequireAnAcceptedCertificate(t *testing.T) {
 
 	// Accepted for one certificate, then another one replaced it: refused as well
 	p = e.newAuthProcess(cd, true, false)
-	p.CertificateData = newCertData(t, testOrgID, true)
+	p.SetCertificate(newCertData(t, testOrgID, true))
 	e.do(t, postForm(sendEmailVerificationEndpoint, url.Values{"auth_code": {p.Code}, "email": {"user@example.com"}}))
 	if p.Email != "" {
 		t.Fatalf("email step run for a certificate other than the accepted one")
@@ -269,7 +287,9 @@ func TestTokensOnlyAfterAcceptedAndCompletedFlow(t *testing.T) {
 		{true, true, fiber.StatusOK},
 	}
 	for _, tc := range cases {
-		p := e.newAuthProcess(newCertData(t, testOrgID, true), tc.accepted, tc.completed)
+		cd := newCertData(t, testOrgID, true)
+		e.approve(t, cd)
+		p := e.newAuthProcess(cd, tc.accepted, tc.completed)
 		resp, body := e.do(t, postForm(token_endpoint, url.Values{"grant_type": {"authorization_code"}, "code": {p.Code}, "client_id": {testClientID}}))
 		if resp.StatusCode != tc.wantStatus {
 			t.Fatalf("accepted=%v completed=%v: status %d, want %d: %s", tc.accepted, tc.completed, resp.StatusCode, tc.wantStatus, body)
@@ -346,5 +366,64 @@ func TestSSOSessionOfApprovedCertificateNotReusedWhenPolicyDisabled(t *testing.T
 	}
 	if e.authorizeWithSSO(t, cd) {
 		t.Fatalf("SSO session of a manually approved certificate reused with the policy disabled")
+	}
+}
+
+func TestWithdrawalStopsOpenAuthenticationProcesses(t *testing.T) {
+	e := newTestEnv(t, types.PROFILE_ISBE_PRO, true, "")
+	token := func(p *models.AuthProcess) int {
+		resp, _ := e.do(t, postForm(token_endpoint, url.Values{"grant_type": {"authorization_code"}, "code": {p.Code}, "client_id": {testClientID}}))
+		return resp.StatusCode
+	}
+
+	// A process in the middle of the registration: the next step is refused
+	cd := newCertData(t, testOrgID, true)
+	e.approve(t, cd)
+	p := e.newAuthProcess(cd, true, false)
+	p.Email = "user@example.com"
+	form := url.Values{"auth_code": {p.Code}, "representative_email": {p.Email}, "representative_name": {"Jane Doe"}}
+	if _, body := e.do(t, postForm(presentContractForAcceptanceEndpoint, form)); !strings.Contains(body, testOrgID) {
+		t.Fatalf("contract step refused while the certificate is approved")
+	}
+	e.withdraw(t, cd)
+	if _, body := e.do(t, postForm(presentContractForAcceptanceEndpoint, form)); strings.Contains(body, testOrgID) {
+		t.Fatalf("contract step run after the approval was withdrawn")
+	}
+
+	// A completed process whose code has not been exchanged yet: no tokens
+	cd = newCertData(t, testOrgID, true)
+	e.approve(t, cd)
+	p = e.newAuthProcess(cd, true, true)
+	e.withdraw(t, cd)
+	if status := token(p); status != fiber.StatusBadRequest {
+		t.Fatalf("token status %d after the approval was withdrawn, want 400", status)
+	}
+
+	// Approved again but for another organization: no tokens either
+	cd = newCertData(t, testOrgID, true)
+	if _, err := e.raw.Exec(`INSERT INTO approved_certificates (certificate_sha256, organization_identifier) VALUES (?, 'NTRNL-87654321')`, fingerprint(cd)); err != nil {
+		t.Fatal(err)
+	}
+	if status := token(e.newAuthProcess(cd, true, true)); status != fiber.StatusBadRequest {
+		t.Fatalf("token status %d for a certificate approved for another organization, want 400", status)
+	}
+
+	// Whitelist unavailable: no tokens
+	cd = newCertData(t, testOrgID, true)
+	e.approve(t, cd)
+	p = e.newAuthProcess(cd, true, true)
+	e.s.db.Close()
+	if status := token(p); status != fiber.StatusBadRequest {
+		t.Fatalf("token status %d with the whitelist unavailable, want 400", status)
+	}
+}
+
+func TestSSOSessionOfExpiredApprovedCertificateNotReused(t *testing.T) {
+	e := newTestEnv(t, types.PROFILE_ISBE_PRO, true, "")
+	cd := newCertData(t, testOrgID, true)
+	e.approve(t, cd)
+	cd.Certificate.NotAfter = time.Now().Add(-time.Minute) // expired after the session was opened
+	if e.authorizeWithSSO(t, cd) {
+		t.Fatalf("SSO session of an expired approved certificate reused")
 	}
 }

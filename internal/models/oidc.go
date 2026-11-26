@@ -2,6 +2,7 @@
 package models
 
 import (
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -56,17 +57,72 @@ type AuthProcess struct {
 	FinishedWalletAuth    bool             `json:"finished_wallet_auth,omitempty"`
 	ErrorInProcess        error            `json:"-"`
 
-	// AcceptedCertificate is the certificate data that CertAuth validated. The later steps of the
-	// flow require it to be the current CertificateData (see CertificateAccepted).
-	AcceptedCertificate *CertificateData `json:"-"`
-	// CertificateFlowCompleted is set when the code is handed back to the RP after a certificate
-	// authentication. Tokens for a certificate authentication are only issued once it is set.
-	CertificateFlowCompleted bool `json:"-"`
+	// The certificate that CertAuth accepted and whether its flow completed. They are only
+	// accessed through the methods below, under mu, together with CertificateData: the
+	// certificate steps run in concurrent requests that share this object.
+	mu                  sync.Mutex
+	acceptedCertificate *CertificateData
+	flowCompleted       bool
 }
 
-// CertificateAccepted reports whether CertAuth validated the certificate currently held.
-func (a *AuthProcess) CertificateAccepted() bool {
-	return a.CertificateData != nil && a.AcceptedCertificate == a.CertificateData
+// SetCertificate sets the certificate received by CertSec (nil to clear it). Whatever CertAuth
+// accepted before no longer applies.
+func (a *AuthProcess) SetCertificate(cd *CertificateData) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.CertificateData, a.acceptedCertificate, a.flowCompleted = cd, nil, false
+}
+
+// Certificate returns the certificate received by CertSec.
+func (a *AuthProcess) Certificate() *CertificateData {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.CertificateData
+}
+
+// AcceptCertificate records that CertAuth validated cd. It fails if cd is no longer the
+// current certificate.
+func (a *AuthProcess) AcceptCertificate(cd *CertificateData) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if cd == nil || a.CertificateData != cd {
+		return false
+	}
+	a.acceptedCertificate = cd
+	return true
+}
+
+// AcceptedCertificate returns the current certificate if CertAuth accepted it, or nil.
+func (a *AuthProcess) AcceptedCertificate() *CertificateData {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.CertificateData == nil || a.acceptedCertificate != a.CertificateData {
+		return nil
+	}
+	return a.CertificateData
+}
+
+// CompleteCertificateFlow records that the flow finished for cd, which must be the current
+// and accepted certificate.
+func (a *AuthProcess) CompleteCertificateFlow(cd *CertificateData) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if cd == nil || a.CertificateData != cd || a.acceptedCertificate != cd {
+		return false
+	}
+	a.flowCompleted = true
+	return true
+}
+
+// CompletedCertificate returns the current certificate if it was accepted and its flow
+// completed, or nil. Tokens for a certificate authentication are only issued for it.
+func (a *AuthProcess) CompletedCertificate() *CertificateData {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.CertificateData == nil || a.acceptedCertificate != a.CertificateData || !a.flowCompleted {
+		return nil
+	}
+	return a.CertificateData
 }
 
 // SSOSession represents a single sign-on session, stored in-memory in the server

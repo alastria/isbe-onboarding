@@ -182,14 +182,11 @@ func (s *CertAuthServer) Authorization(c *fiber.Ctx) error {
 	// The SSO session of a manually approved certificate is only reused while the certificate is
 	// still approved for the same organization and the policy is enabled: withdrawing the approval
 	// ends the single sign-on at the next authorization.
-	if ssoSession != nil && ssoSession.CertificateData != nil && ssoSession.CertificateData.ManuallyApproved {
-		certData := ssoSession.CertificateData
-		approvedID, err := s.db.GetApprovedOrganizationIdentifier(fmt.Sprintf("%x", sha256.Sum256(certData.Certificate.Raw)))
-		if err != nil || !s.manualCertificateApprovalEnabled || approvedID != certData.OrganizationID {
-			slog.Warn("SSO session not reused: the certificate is no longer manually approved", "organization_identifier", certData.OrganizationID, "error", err)
-			s.ssoCache.Delete(ssoSession.SessionID)
-			ssoSession = nil
-		}
+	if ssoSession != nil && ssoSession.CertificateData != nil && ssoSession.CertificateData.ManuallyApproved &&
+		!s.stillManuallyApproved(ssoSession.CertificateData) {
+		slog.Warn("SSO session not reused: the certificate is no longer manually approved", "organization_identifier", ssoSession.CertificateData.OrganizationID)
+		s.ssoCache.Delete(ssoSession.SessionID)
+		ssoSession = nil
 	}
 
 	// Generate an authorization code for this RP authentication process.
@@ -211,11 +208,11 @@ func (s *CertAuthServer) Authorization(c *fiber.Ctx) error {
 		slog.Debug("bypassing certificate selection", "code", authProcess.Code, "redirect_uri", authProcess.RedirectURI)
 
 		// Store certificate data, email of the user and powers in the authProcess struct
-		authProcess.CertificateData = ssoSession.CertificateData
+		authProcess.SetCertificate(ssoSession.CertificateData)
+		authProcess.AcceptCertificate(ssoSession.CertificateData)
+		authProcess.CompleteCertificateFlow(ssoSession.CertificateData)
 		authProcess.Email = ssoSession.Email
 		authProcess.Powers = ssoSession.Powers
-		authProcess.AcceptedCertificate = ssoSession.CertificateData
-		authProcess.CertificateFlowCompleted = ssoSession.CertificateData != nil
 
 		// And redirect back to the caller
 		redirectURL := fmt.Sprintf("%s?code=%s", authProcess.RedirectURI, authProcess.Code)
@@ -306,9 +303,10 @@ func (s *CertAuthServer) APITokenExchange(c *fiber.Ctx) error {
 		return errl.Errorf("auth code client mismatch")
 	}
 
-	// Tokens for a certificate authentication are only issued when the flow completed
-	// with a certificate accepted by CertAuth
-	if authProcess.CertificateData != nil && (!authProcess.CertificateAccepted() || !authProcess.CertificateFlowCompleted) {
+	// Tokens for a certificate authentication are only issued for the certificate accepted by
+	// CertAuth once its flow completed and, if manually approved, while it is still approved
+	certData := authProcess.CompletedCertificate()
+	if authProcess.Certificate() != nil && (certData == nil || (certData.ManuallyApproved && !s.stillManuallyApproved(certData))) {
 		slog.Warn("Token requested for a certificate authentication that was not completed", "auth_code", tokenReq.Code)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error":             "invalid_grant",
@@ -323,7 +321,7 @@ func (s *CertAuthServer) APITokenExchange(c *fiber.Ctx) error {
 	}
 
 	// Generate tokens with certificate data if available
-	tokens, err := s.generateTokens(authProcess, rp)
+	tokens, err := s.generateTokens(authProcess, certData, rp)
 	if err != nil {
 		return errl.Errorf("failed to generate tokens: %w", err)
 	}
@@ -450,18 +448,16 @@ func (s *CertAuthServer) generateAuthProcess(req *models.AuthorizationRequest, r
 	return authCode
 }
 
-func (s *CertAuthServer) generateTokens(authProcess *models.AuthProcess, rp *models.RelyingParty) (map[string]any, error) {
+func (s *CertAuthServer) generateTokens(authProcess *models.AuthProcess, certData *models.CertificateData, rp *models.RelyingParty) (map[string]any, error) {
 
-	if authProcess.CertificateData == nil && authProcess.CredentialData == nil {
+	if certData == nil && authProcess.CredentialData == nil {
 		err := errl.Errorf("no credential or certificate data found in auth process")
 		slog.Error(err.Error(), "auth_code", authProcess.Code)
 		return nil, err
 	}
 
-	if authProcess.CertificateData != nil {
+	if certData != nil {
 		// Authentication performed with a certificate
-
-		certData := authProcess.CertificateData
 
 		// Generate ID token
 		idToken, err := s.jwtService.GenerateIDTokenForCert(authProcess, certData, rp)
@@ -608,15 +604,33 @@ func (s *CertAuthServer) getAuthProcess(authCode string) (*models.AuthProcess, e
 
 }
 
-// getAcceptedCertificateProcess returns the authentication process only if CertAuth accepted the
-// certificate that it holds (see pageRequestEmail). The later steps of the certificate flow use it.
-func (s *CertAuthServer) getAcceptedCertificateProcess(authCode string) (*models.AuthProcess, error) {
+// getAcceptedCertificateProcess returns the authentication process and the certificate that
+// CertAuth accepted for it (see pageRequestEmail), which the later steps of the flow must use.
+// A manually approved certificate must still be approved.
+func (s *CertAuthServer) getAcceptedCertificateProcess(authCode string) (*models.AuthProcess, *models.CertificateData, error) {
 	authProcess, err := s.getAuthProcess(authCode)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	if !authProcess.CertificateAccepted() {
-		return nil, errl.Errorf("the certificate has not been accepted for auth_code: %s", authCode)
+	certData := authProcess.AcceptedCertificate()
+	if certData == nil || (certData.ManuallyApproved && !s.stillManuallyApproved(certData)) {
+		return nil, nil, errl.Errorf("the certificate has not been accepted for auth_code: %s", authCode)
 	}
-	return authProcess, nil
+	return authProcess, certData, nil
+}
+
+// stillManuallyApproved reports whether a manually approved certificate is still valid and
+// approved for the same organization, with the policy enabled. A whitelist error means no.
+func (s *CertAuthServer) stillManuallyApproved(certData *models.CertificateData) bool {
+	now := time.Now()
+	if !s.manualCertificateApprovalEnabled || certData.Certificate == nil ||
+		now.Before(certData.Certificate.NotBefore) || now.After(certData.Certificate.NotAfter) {
+		return false
+	}
+	approvedID, err := s.db.GetApprovedOrganizationIdentifier(fmt.Sprintf("%x", sha256.Sum256(certData.Certificate.Raw)))
+	if err != nil {
+		slog.Error("checking approved certificate", "error", err)
+		return false
+	}
+	return approvedID == certData.OrganizationID
 }

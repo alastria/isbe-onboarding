@@ -145,7 +145,7 @@ func (s *CertAuthServer) pageRequestEmail(c *fiber.Ctx) error {
 	}
 
 	// Get the certificate data that was set by the certificate authentication process
-	certData := authProcess.CertificateData
+	certData := authProcess.Certificate()
 
 	// Validate the certificate data
 	if certData == nil {
@@ -209,8 +209,11 @@ func (s *CertAuthServer) pageRequestEmail(c *fiber.Ctx) error {
 		}
 	}
 
-	// The certificate is accepted: the next steps of the flow are allowed for it
-	authProcess.AcceptedCertificate = certData
+	// The certificate is accepted: the next steps of the flow are allowed for it, unless CertSec
+	// received another certificate meanwhile
+	if !authProcess.AcceptCertificate(certData) {
+		return errl.Errorf("the certificate changed during its validation")
+	}
 
 	// Check if the organization is already registered
 	email, formData, _, err := s.db.GetRegistration(certData.OrganizationID)
@@ -256,7 +259,9 @@ func (s *CertAuthServer) pageRequestEmail(c *fiber.Ctx) error {
 		// Store email of the user in the authProcess struct
 		authProcess.Email = email
 		authProcess.Powers = powers
-		authProcess.CertificateFlowCompleted = true
+		if !authProcess.CompleteCertificateFlow(certData) {
+			return errl.Errorf("the certificate changed during the authentication")
+		}
 
 		redirectURL := fmt.Sprintf("%s?code=%s", authProcess.RedirectURI, authProcess.Code)
 		if authProcess.State != "" {
@@ -422,7 +427,7 @@ func (s *CertAuthServer) sendEmailVerification(c *fiber.Ctx) error {
 	authCode := c.FormValue("auth_code")
 
 	// Retrieve the Authentication Process object from the cache
-	authProcess, err := s.getAcceptedCertificateProcess(authCode)
+	authProcess, certData, err := s.getAcceptedCertificateProcess(authCode)
 	if err != nil {
 		err := errl.Errorf("getAuthProcess: %w", err)
 		slog.Error(err.Error())
@@ -457,7 +462,6 @@ func (s *CertAuthServer) sendEmailVerification(c *fiber.Ctx) error {
 
 	slog.Info("Email verification requested", "email", email, "auth_code", authCode)
 
-	certData := authProcess.CertificateData
 	if certData == nil {
 		err := errl.Errorf("certificate data not found in authorization request")
 		slog.Error(err.Error(), "auth_code", authCode)
@@ -547,7 +551,7 @@ func (s *CertAuthServer) verifyEmailCodeAndPresentContractForm(c *fiber.Ctx) err
 	slog.Info("Email verification code verification requested", "email", email, "auth_code", authCode)
 
 	// Retrieve the Authentication Process object from the cache
-	authProcess, err := s.getAcceptedCertificateProcess(authCode)
+	authProcess, certData, err := s.getAcceptedCertificateProcess(authCode)
 	if err != nil {
 		err := errl.Errorf("getAuthProcess: %w", err)
 		slog.Error(err.Error())
@@ -589,8 +593,6 @@ func (s *CertAuthServer) verifyEmailCodeAndPresentContractForm(c *fiber.Ctx) err
 	}
 
 	slog.Debug("Stored email", "email", storedEmail)
-
-	certData := authProcess.CertificateData
 
 	// Update the email field in the certificate data
 	certData.Subject.EmailAddress = storedEmail
@@ -653,7 +655,7 @@ func (s *CertAuthServer) pagePresentContractForAcceptance(c *fiber.Ctx) error {
 	}
 
 	// Retrieve the Authentication Process object from the cache
-	authProcess, err := s.getAcceptedCertificateProcess(authCode)
+	authProcess, certData, err := s.getAcceptedCertificateProcess(authCode)
 	if err != nil {
 		err := errl.Errorf("getAuthProcess: %w", err)
 		slog.Error(err.Error())
@@ -728,8 +730,6 @@ func (s *CertAuthServer) pagePresentContractForAcceptance(c *fiber.Ctx) error {
 	if formData.RegistrySheet == "" {
 		formData.RegistrySheet = "N/A"
 	}
-
-	certData := authProcess.CertificateData
 
 	// The organization identifier always comes from the certificate, never from the form
 	formData.OrganizationNif = certData.OrganizationID
@@ -846,7 +846,7 @@ func (s *CertAuthServer) handleContractAccepted(c *fiber.Ctx) error {
 	}
 
 	// Retrieve the Authentication Process object from the cache
-	authProcess, err := s.getAcceptedCertificateProcess(authCode)
+	authProcess, certData, err := s.getAcceptedCertificateProcess(authCode)
 	if err != nil {
 		err := errl.Errorf("getAuthProcess: %w", err)
 		slog.Error(err.Error())
@@ -870,7 +870,6 @@ func (s *CertAuthServer) handleContractAccepted(c *fiber.Ctx) error {
 	// The organization identifier always comes from the certificate (or its approval), never from the form.
 	// Normalise it: values with an ETSI semantic prefix (VATES-, NTRNL-, ...) are kept as they come
 	// in the certificate, and bare national IDs get the prefix 'VATXX-'.
-	certData := authProcess.CertificateData
 	formData.OrganizationNif = orgid.NormalizeOrganizationIdentifier(certData.OrganizationID, certData.Subject.Country)
 
 	// Check that we have the name and email of the representative
@@ -913,7 +912,7 @@ func (s *CertAuthServer) handleContractAccepted(c *fiber.Ctx) error {
 	// The contract is timestamped (and the token verified) before anything is stored.
 	// The TSA log lines carry the auth code as correlation ID.
 	regCtx := tsaservice.WithCorrelationID(c.UserContext(), authCode)
-	if err := s.db.CreateRegistration(regCtx, s.tsaService, authProcess.CertificateData, storedEmail, &formData, contractDocument); err != nil {
+	if err := s.db.CreateRegistration(regCtx, s.tsaService, certData, storedEmail, &formData, contractDocument); err != nil {
 		err = errl.Errorf("creating registration: %w", err)
 		slog.Error(err.Error(), "auth_code", authCode)
 		// Do not expose internal details (TSA endpoint, verification errors) to the browser.
@@ -934,7 +933,7 @@ func (s *CertAuthServer) handleContractAccepted(c *fiber.Ctx) error {
 		Email:         formData.RepresentativeEmail,
 	}
 
-	createOrg := tmfservice.BuildTMFOrganizationFromRequest(request, authProcess.CertificateData.CertificateDER)
+	createOrg := tmfservice.BuildTMFOrganizationFromRequest(request, certData.CertificateDER)
 
 	// If we are not in Production, delete all existing organizations
 	if s.profile != types.PROFILE_ISBE_PRO {
@@ -971,7 +970,7 @@ func (s *CertAuthServer) handleContractAccepted(c *fiber.Ctx) error {
 	ssoSession := &models.SSOSession{
 		SessionID:       ssoSessionID,
 		Email:           storedEmail,
-		CertificateData: authProcess.CertificateData,
+		CertificateData: certData,
 		Powers:          authProcess.Powers,
 	}
 
@@ -990,7 +989,9 @@ func (s *CertAuthServer) handleContractAccepted(c *fiber.Ctx) error {
 	// Set SSO cookie
 	c.Cookie(ssoCookie)
 
-	authProcess.CertificateFlowCompleted = true
+	if !authProcess.CompleteCertificateFlow(certData) {
+		return errl.Errorf("the certificate changed during the authentication")
+	}
 
 	// Redirect (302) to RP with auth code
 	slog.Info("User consent processed successfully", "email", storedEmail, "auth_code", authCode)

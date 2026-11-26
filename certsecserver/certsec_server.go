@@ -415,6 +415,11 @@ func (s *CertSecServer) checkAdminAuthentication(c *fiber.Ctx) (*x509util.ELSINa
 		return nil, errl.Errorf("retrieving certificate: %w", err)
 	}
 
+	// As in the authentication flow, both organizationIdentifier and serialNumber cannot be empty
+	if subject.OrganizationIdentifier == "" && subject.SerialNumber == "" {
+		return nil, errl.Errorf("retrieving certificate: Both organizationIdentifier and serialNumber are empty")
+	}
+
 	// Check for admin
 	if !isAdmin(issuer, subject) {
 		return nil, errl.Errorf("Certificate serial number '%s' or issuer.organizationIdentifier '%s' is invalid", subject.SerialNumber, issuer.OrganizationIdentifier)
@@ -559,8 +564,7 @@ func (s *CertSecServer) handleCertificateAuth(c *fiber.Ctx) error {
 	slog.Info("Certificate authentication requested", "auth_code", authCode)
 
 	// Whatever CertAuth accepted before, a new certificate has to be validated again
-	authProcess.AcceptedCertificate = nil
-	authProcess.CertificateFlowCompleted = false
+	authProcess.SetCertificate(nil)
 
 	sendBackError := func(err error) error {
 		// Redirect back to certauth with an error
@@ -660,7 +664,7 @@ func (s *CertSecServer) handleCertificateAuth(c *fiber.Ctx) error {
 	certData.ManuallyApproved = manuallyApproved
 
 	// Set the certificate data in the auth request for later retrieval
-	authProcess.CertificateData = certData
+	authProcess.SetCertificate(certData)
 
 	// Redirect back to certauth
 	redirectURL := s.CertAuthURL + "/certificate-back?code=" + authCode

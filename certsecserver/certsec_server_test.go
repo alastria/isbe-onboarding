@@ -36,6 +36,7 @@ type testCert struct {
 	key                 crypto.Signer
 	extKeyUsage         []x509.ExtKeyUsage
 	isCA                bool
+	issuerOrgID         string // issuer organizationIdentifier; empty: self-signed
 }
 
 // build returns the certificate as base64 DER, as Caddy sends it, and its SHA-256 fingerprint.
@@ -68,7 +69,11 @@ func (tc testCert) build(t *testing.T) (b64der string, fingerprint string) {
 		IsCA:                  tc.isCA,
 		BasicConstraintsValid: true,
 	}
-	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, key.Public(), key)
+	parent := tmpl
+	if tc.issuerOrgID != "" {
+		parent = &x509.Certificate{Subject: pkix.Name{CommonName: "Issuer", ExtraNames: []pkix.AttributeTypeAndValue{{Type: asn1.ObjectIdentifier{2, 5, 4, 97}, Value: tc.issuerOrgID}}}}
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, parent, key.Public(), key)
 	if err != nil {
 		t.Fatalf("creating certificate: %v", err)
 	}
@@ -133,7 +138,11 @@ func (e *testEnv) withdraw(t *testing.T, fingerprint string) {
 func (e *testEnv) authenticate(t *testing.T, header, b64der string) *models.AuthProcess {
 	t.Helper()
 	code := fmt.Sprintf("code-%d", time.Now().UnixNano())
-	authProcess := &models.AuthProcess{Code: code, AcceptedCertificate: &models.CertificateData{}, CertificateFlowCompleted: true}
+	authProcess := &models.AuthProcess{Code: code}
+	previous := &models.CertificateData{}
+	authProcess.SetCertificate(previous)
+	authProcess.AcceptCertificate(previous)
+	authProcess.CompleteCertificateFlow(previous)
 	e.cache.Set(code, authProcess, time.Minute)
 
 	req := httptest.NewRequest("GET", "/auth?code="+code, nil)
@@ -147,7 +156,7 @@ func (e *testEnv) authenticate(t *testing.T, header, b64der string) *models.Auth
 	if resp.StatusCode != 302 {
 		t.Fatalf("status %d, want 302", resp.StatusCode)
 	}
-	if authProcess.AcceptedCertificate != nil || authProcess.CertificateFlowCompleted {
+	if authProcess.AcceptedCertificate() != nil || authProcess.CompletedCertificate() != nil {
 		t.Fatalf("CertSec must reset the acceptance of the previous certificate")
 	}
 	if authProcess.ErrorInProcess == nil && authProcess.CertificateData == nil {
@@ -343,5 +352,22 @@ func TestApprovedCertificateIsNotAdmin(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 	if !strings.Contains(string(body), "is invalid") {
 		t.Fatalf("approved certificate reached the admin pages: %s", body)
+	}
+}
+
+func TestAdminRequiresOrganizationIdentifierOrSerialNumber(t *testing.T) {
+	e := newTestEnv(t, types.PROFILE_ISBE_PRO, true, header)
+	// Subject without organizationIdentifier nor serialNumber, as before the CS-407 changes
+	cert, _ := testCert{issuerOrgID: adminIssuerOrganizationIdentifiers[0]}.build(t)
+
+	req := httptest.NewRequest("GET", "/admin/registrations", nil)
+	req.Header.Set(header, cert)
+	resp, err := e.s.app.Test(req, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	if !strings.Contains(string(body), "Both organizationIdentifier and serialNumber are empty") {
+		t.Fatalf("admin pages reached without organizationIdentifier nor serialNumber: %s", body)
 	}
 }
