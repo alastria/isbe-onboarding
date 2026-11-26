@@ -3,7 +3,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -56,9 +55,14 @@ func run() error {
 	// And set the default logging system for all components
 	slog.SetDefault(slog.New(sqlog))
 
-	// Pretty-print the full config
-	fmt.Println("Full config:")
-	out, _ := json.MarshalIndent(cfg, "", "  ")
+	// Pretty-print the config with every secret redacted (passwords, API keys,
+	// tokens, client secrets). Never print the raw configuration: it ends up in
+	// the container logs.
+	out, err := mainserver.RedactedConfigJSON(cfg)
+	if err != nil {
+		return errl.Errorf("failed to render configuration: %v", err)
+	}
+	fmt.Println("Full config (secrets redacted):")
 	fmt.Println(string(out))
 	fmt.Println("Full config end")
 

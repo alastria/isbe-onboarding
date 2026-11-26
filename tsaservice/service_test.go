@@ -1,45 +1,36 @@
+//go:build integration
+
 package tsaservice
 
 import (
-	"fmt"
 	"os"
 	"testing"
 )
 
+// TestTimestampAndVerify requests exactly ONE real timestamp from the TSA
+// configured in the environment and runs the acceptance checks of
+// acceptanceRun. It consumes provider quota, so it is excluded from normal
+// builds (build tag "integration") and must be run on its own, never with ./...:
+//
+//	go test -tags integration -count=1 -run '^TestTimestampAndVerify$' -v ./tsaservice/
+//
+// Required: TSA_URL, TSA_USER, TSA_PASSWORD (or the _FILE variants).
+// Optional: TSA_POLICY_OID (only once the provider has confirmed it),
+// TSA_TIMEOUT (default 30s), TSA_TRUST_* overrides, DEBUG_TSR (path where the
+// DER response is saved). With the embedded trust store the anchor must be the
+// DigitelTS root.
 func TestTimestampAndVerify(t *testing.T) {
-	// Skip if manual or CI without net? Assuming we can run it.
-	// We need environment variables or just default to the hardcoded ones for this test task?
-	// The service.go has defaults.
-
-	cfg := TSAConfig{
-		TSAURL:      "",
-		TSAUser:     "",
-		TSAPassword: "",
-		CACertURL:   "",
+	if os.Getenv(EnvURL) == "" || (os.Getenv(EnvUser) == "" && os.Getenv(EnvUserFile) == "") ||
+		(os.Getenv(EnvPassword) == "" && os.Getenv(EnvPasswordFile) == "") {
+		t.Skip("set TSA_URL, TSA_USER and TSA_PASSWORD (or the _FILE variants) to run against a real TSA")
 	}
-
-	svc, err := NewTSAService(&cfg)
-	if err != nil {
-		t.Fatalf("Failed to create service: %v", err)
+	cfg := &TSAConfig{Environment: "integration-test"}
+	if err := ApplyEnv(cfg, os.Getenv, os.ReadFile); err != nil {
+		t.Fatal(err)
 	}
-
-	data := []byte("Hello, World! This is a test for timestamping.")
-
-	tsr, err := svc.Timestamp(data)
-	if err != nil {
-		t.Fatalf("Timestamp failed: %v", err)
+	want := ""
+	if cfg.trustSource() == "embedded" {
+		want = EmbeddedRootSHA256
 	}
-
-	ll := len(tsr)
-	fmt.Printf("Length: %d\n", ll)
-
-	// Save TSR for debugging if needed
-	if os.Getenv("DEBUG_TSR") != "" {
-		os.WriteFile("debug.tsr", tsr, 0644)
-	}
-
-	_, err = svc.Verify(tsr, data)
-	if err != nil {
-		t.Fatalf("Verify failed: %v", err)
-	}
+	acceptanceRun(t, cfg, want)
 }

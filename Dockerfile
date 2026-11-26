@@ -16,6 +16,8 @@ COPY . .
 # Build the binary with CGO enabled
 # -ldflags="-w -s" strips debug information and symbols, reducing the binary size
 RUN go build -ldflags="-w -s" -o /certauth .
+# TSA diagnostics tool (verify stored evidence, manual probe); contains no secrets
+RUN go build -ldflags="-w -s" -o /tsatool ./cmd/tsatool
 
 # Final stage
 FROM alpine/curl:latest
@@ -30,6 +32,7 @@ RUN weasyprint --version
 
 WORKDIR /
 COPY --from=builder /certauth /certauth
+COPY --from=builder /tsatool /tsatool
 RUN chmod +x /certauth
 COPY --from=builder /app/certauthserver/views /certauthserver/views
 COPY --from=builder /app/certsecserver/views /certsecserver/views

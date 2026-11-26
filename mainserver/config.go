@@ -17,8 +17,10 @@ import (
 
 // Default Configuration Constants
 const (
-	defaultCaCertURL     = "http://pki.digitelts.es/DIGITELTSCAROOT01.pem"
-	defaultTsaURL        = "https://timestamp-service.pre-api.digitelts.com/tsa"
+	// localTsaURL is only used by the local profile. Every other profile must set
+	// TSA_URL explicitly: the right endpoint for each environment is a deployment
+	// decision (this one is the provider's pre-production service).
+	localTsaURL          = "https://timestamp-service.pre-api.digitelts.com/tsa"
 	defaultEUDSSURL      = "https://ec.europa.eu/digital-building-blocks/DSS/webapp-demo/services/rest/certificate-validation/validateCertificate"
 	defaultManagementURL = "https://poc-middleware-management.dev.cloud-w.envs.redisbe.com/api/managements"
 )
@@ -60,10 +62,10 @@ type PredefinedRP struct {
 	ClientSecret string
 }
 
-var defaultTsaConfig = &tsaservice.TSAConfig{
-	TSAURL:    defaultTsaURL,
-	CACertURL: defaultCaCertURL,
-	EUDSSURL:  defaultEUDSSURL,
+// newTsaConfig returns a fresh TSA configuration. Credentials are never defaulted
+// and the trust store defaults to the one embedded in tsaservice (no download).
+func newTsaConfig() *tsaservice.TSAConfig {
+	return &tsaservice.TSAConfig{EUDSSURL: defaultEUDSSURL}
 }
 
 var defaultEmailConfig = &email.EmailConfig{
@@ -103,7 +105,7 @@ func LoadConfig() (*Config, string, error) {
 			CertAuthPort:  "8010",
 			CertSecURL:    "https://certsec." + localDomain,
 			CertSecPort:   "8011",
-			TSAConfig:     defaultTsaConfig,
+			TSAConfig:     newTsaConfig(),
 			EmailConfig:   defaultEmailConfig,
 			ManagementURL: defaultManagementURL,
 			EUDSSURL:      defaultEUDSSURL,
@@ -146,7 +148,7 @@ func LoadConfig() (*Config, string, error) {
 			CertAuthPort:  "8010",
 			CertSecURL:    "https://certsec.dev.portal.redisbe.com",
 			CertSecPort:   "8011",
-			TSAConfig:     defaultTsaConfig,
+			TSAConfig:     newTsaConfig(),
 			EmailConfig:   defaultEmailConfig,
 			ManagementURL: "https://poc-middleware-management.dev.cloud-w.envs.redisbe.com/api/managements",
 			EUDSSURL:      defaultEUDSSURL,
@@ -211,7 +213,7 @@ func LoadConfig() (*Config, string, error) {
 			CertAuthPort:  "8010",
 			CertSecURL:    "https://certsec.pre.portal.redisbe.com",
 			CertSecPort:   "8011",
-			TSAConfig:     defaultTsaConfig,
+			TSAConfig:     newTsaConfig(),
 			EmailConfig:   defaultEmailConfig,
 			ManagementURL: "https://poc-middleware-management.pre.cloud-w.envs.redisbe.com/api/managements",
 			EUDSSURL:      defaultEUDSSURL,
@@ -276,7 +278,7 @@ func LoadConfig() (*Config, string, error) {
 			CertAuthPort:  "8010",
 			CertSecURL:    "https://certsec.portal.redisbe.com",
 			CertSecPort:   "8011",
-			TSAConfig:     defaultTsaConfig,
+			TSAConfig:     newTsaConfig(),
 			EmailConfig:   defaultEmailConfig,
 			ManagementURL: "https://poc-middleware-management.pro.cloud-w.envs.redisbe.com/api/managements",
 			EUDSSURL:      defaultEUDSSURL,
@@ -382,10 +384,6 @@ func LoadConfig() (*Config, string, error) {
 	// Check for override of the TMF server URL
 	cfg.TMFServerURL = GetStringEnvOrDefault("TMF_SERVER_URL", cfg.TMFServerURL)
 
-	// Check for override of the TSA (Timestamping Authority) config
-	cfg.CertAuthConfig.TSAConfig.TSAURL = GetStringEnvOrDefault("TSA_URL", cfg.CertAuthConfig.TSAConfig.TSAURL)
-	cfg.CertAuthConfig.TSAConfig.CACertURL = GetStringEnvOrDefault("TSA_CA_CERT_URL", cfg.CertAuthConfig.TSAConfig.CACertURL)
-
 	// Check for override of the DSS (Digital Signature Services) URL
 	cfg.CertAuthConfig.EUDSSURL = GetStringEnvOrDefault("DSS_URL", cfg.CertAuthConfig.EUDSSURL)
 
@@ -408,11 +406,9 @@ func LoadConfig() (*Config, string, error) {
 	// The secrets are either in a file which is not in the Git repo or in the environment variables.
 	secretConfig := parseYamlConfig("secrets/config.yaml")
 
-	// The TSA credentials are secret and compulsory
-	tsaUser := GetStringEnvOrDefault("TSA_USER", secretConfig.TSACreds.User)
-	tsaPassword := GetStringEnvOrDefault("TSA_PASSWORD", secretConfig.TSACreds.Password)
-	if tsaUser == "" || tsaPassword == "" {
-		return nil, "", errl.Errorf("TSA user and password required")
+	// TSA (Timestamping Authority) configuration and credentials
+	if err := configureTSA(cfg.CertAuthConfig.TSAConfig, cfg.Profile, os.Getenv, os.ReadFile, secretConfig.TSACreds); err != nil {
+		return nil, "", err
 	}
 
 	// The email credentials are secret and compulsory
@@ -423,13 +419,39 @@ func LoadConfig() (*Config, string, error) {
 	}
 
 	// Update the config with the secrets
-	cfg.CertAuthConfig.TSAConfig.TSAUser = tsaUser
-	cfg.CertAuthConfig.TSAConfig.TSAPassword = tsaPassword
 	cfg.CertAuthConfig.EmailConfig.User = emailUser
 	cfg.CertAuthConfig.EmailConfig.Email = emailUser
 	cfg.CertAuthConfig.EmailConfig.Password = emailPassword
 
 	return &cfg, adminPassword, nil
+}
+
+// configureTSA completes the TSA configuration of a profile from the TSA_*
+// environment variables and, for the credentials only, from secrets/config.yaml.
+// It never supplies default credentials. Outside the local profile TSA_URL must
+// be set explicitly and plain HTTP or unpinned downloads are not allowed.
+func configureTSA(tsaCfg *tsaservice.TSAConfig, profile types.Profile, getenv func(string) string, readFile func(string) ([]byte, error), secrets TSACreds) error {
+	tsaCfg.Environment = string(profile)
+	if profile == types.PROFILE_LOCAL {
+		tsaCfg.AllowInsecure = true
+		tsaCfg.TSAURL = localTsaURL
+	}
+	if err := tsaservice.ApplyEnv(tsaCfg, getenv, readFile); err != nil {
+		return errl.Errorf("TSA configuration: %w", err)
+	}
+	if tsaCfg.TSAURL == "" {
+		return errl.Errorf("TSA_URL is required for profile %s", profile)
+	}
+	if tsaCfg.TSAUser == "" {
+		tsaCfg.TSAUser = secrets.User
+	}
+	if tsaCfg.TSAPassword == "" {
+		tsaCfg.TSAPassword = secrets.Password
+	}
+	if tsaCfg.TSAUser == "" || tsaCfg.TSAPassword == "" {
+		return errl.Errorf("TSA user and password required (TSA_USER/TSA_PASSWORD, TSA_USER_FILE/TSA_PASSWORD_FILE or secrets/config.yaml)")
+	}
+	return nil
 }
 
 // GetStringEnvOrDefault gets an environment variable or returns a default value

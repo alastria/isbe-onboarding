@@ -55,7 +55,16 @@
             </div>
         </div>
 
-        {{if not .certData.EIDASCertificate}}
+        {{ if .certData.ManuallyApproved }}
+        <div class="ui blue icon message">
+            <i class="check circle outline icon"></i>
+            <div class="content">
+                <div class="header">Manually approved certificate</div>
+                This certificate is not a qualified eIDAS certificate. It is accepted because ISBE has explicitly
+                approved it for the organization {{ .certData.OrganizationID }}.
+            </div>
+        </div>
+        {{ else if not .certData.EIDASCertificate }}
         <div class="ui yellow icon message">
             <i class="exclamation triangle icon"></i>
             <div class="content">

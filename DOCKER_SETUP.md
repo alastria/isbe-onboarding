@@ -280,8 +280,13 @@ Configured in `docker-compose.yml`:
 - `ONBOARD_URL=https://onboard.localhost` - External URL for OAuth callbacks
 
 ### Credentials (for production, replace with real values)
-- `TSA_USER=dev_user` - Timestamp Authority username
-- `TSA_PASSWORD=dev_password` - Timestamp Authority password  
+- `TSA_USER=dev_user` - Timestamp Authority username (dummy: timestamping fails with it)
+- `TSA_PASSWORD=dev_password` - Timestamp Authority password (dummy)
+- `TSA_URL` - optional in the `local` profile (defaults to the DigitelTS pre-production endpoint); required in `isbe-*` profiles
+- `TSA_USER_FILE` / `TSA_PASSWORD_FILE` - alternative: paths of files mounted as secrets
+
+Never put real TSA credentials in `docker-compose.yml`, `.env.example` or the image. See
+[tsaservice/README.md](tsaservice/README.md) for all TSA variables and the trust store.
 - `SMTP_USERNAME=dev@localhost` - Email server username
 - `SMTP_PASSWORD=dev_password` - Email server password
 
@@ -300,7 +305,7 @@ For production deployment:
 
 1. **Use proper SSL certificates** - Replace Caddy's local CA with Let's Encrypt or commercial certs
 2. **Change profile** - Set `PROFILE=isbe-dev`, `isbe-pre`, or `isbe-pro`
-3. **Secure credentials** - Use secrets management for TSA and SMTP credentials
+3. **Secure credentials** - Use secrets management for TSA and SMTP credentials (Coolify secret variables or mounted files with `TSA_PASSWORD_FILE`); set `TSA_URL` explicitly per environment
 4. **Configure real domains** - Replace `.localhost` domains with production domains
 5. **Enable monitoring** - Prometheus metrics available at `/metrics` endpoint
 6. **Set up logging** - Configure centralized logging aggregation

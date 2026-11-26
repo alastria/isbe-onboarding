@@ -145,7 +145,7 @@ func (s *CertAuthServer) APIWalletLoginPagePoll(c *fiber.Ctx) error {
 		})
 	}
 
-	if authProcess.FinishedWalletAuth {
+	if authProcess.WalletAuthFinished() {
 		// The authentication request has been processed, so we redirect to the caller
 		// with the auth code and the state.
 		redirectURL := fmt.Sprintf("%s?code=%s", authProcess.RedirectURI, authProcess.Code)
@@ -296,8 +296,8 @@ func (s *CertAuthServer) APIWalletAuthenticationResponse(c *fiber.Ctx) error {
 	// TODO: Invoke the PDP (Policy Decision Point) to authenticate/authorize this request
 
 	// Update the internal AuthProcess with the LEARCredential received from the Wallet and signal we are finished.
-	authProcess.CredentialData = credMap
-	authProcess.FinishedWalletAuth = true
+	// The wallet authentication replaces any certificate attempt with the same code
+	authProcess.CompleteWalletAuthentication(credMap)
 
 	// Redirect to the caller sending the auth code and the state
 	redirectURL := fmt.Sprintf("%s?code=%s", authProcess.RedirectURI, authProcess.Code)

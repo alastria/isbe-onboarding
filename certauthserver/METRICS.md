@@ -37,3 +37,17 @@ Standard Go runtime metrics are also exposed, including:
 - `go_goroutines`: Number of goroutines that currently exist.
 - `go_memstats_*`: Memory usage statistics.
 - `process_cpu_seconds_total`: Total user and system CPU time spent in seconds.
+
+## TSA Metrics
+
+Registered by `tsaservice.RegisterMetrics` on the same registry that serves
+`/metrics` (see `certauthserver/metrics.go`). The `outcome` series start at 0.
+
+| Metric | Type | Labels |
+| --- | --- | --- |
+| `tsa_requests_total` | Counter | `outcome`: success, transport_error, http_error, rejected, verification_failed |
+| `tsa_request_duration_seconds` | Histogram | `outcome` |
+| `tsa_errors_total` | Counter | `reason`: auth, rate_limited, server_error, http_status, timeout, canceled, network, response_too_large, rejected, malformed, internal |
+| `tsa_verification_failures_total` | Counter | `reason`: verification reason (chain, signature, imprint, nonce, policy, eku, ess, ...) |
+
+`TestMetricsEndpointExposesTSAMetrics` scrapes `/metrics` to check this wiring.

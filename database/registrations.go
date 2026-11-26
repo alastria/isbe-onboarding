@@ -1,7 +1,7 @@
 package database
 
 import (
-	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -15,8 +15,12 @@ import (
 	"github.com/alastria/isbe-onboarding/tsaservice"
 )
 
-// CreateRegistration creates a new registration in the database.
-func (d *Database) CreateRegistration(tsaService *tsaservice.TSAService, certificateData *models.CertificateData, email string, formData *models.ContractForm, contractDocument []byte) error {
+// CreateRegistration timestamps the evidence of a new registration and stores it.
+//
+// The registration is only written after the TSA token has passed full
+// verification (tsaservice.TSAService.Timestamp never returns an unverified
+// token). If timestamping fails, nothing is written: no file and no row.
+func (d *Database) CreateRegistration(ctx context.Context, tsaService *tsaservice.TSAService, certificateData *models.CertificateData, email string, formData *models.ContractForm, contractDocument []byte) error {
 
 	// Convert form data into JSON, which will be stored in the database
 	formDataJSON, err := json.Marshal(formData)
@@ -24,26 +28,15 @@ func (d *Database) CreateRegistration(tsaService *tsaservice.TSAService, certifi
 		return errl.Errorf("failed to marshal form data: %w", err)
 	}
 
-	// Create a timestamp using the configured TSA Trust Service Provider
-	// The data to be timestamped is the contract document and the certificate
-	buf := bytes.Buffer{}
-	buf.Write(contractDocument)
-	buf.WriteString(certificateData.CertificateDER)
-	tstDataToTimestamp := buf.Bytes()
-
-	timestamp, err := tsaService.Timestamp(tstDataToTimestamp)
+	// Timestamp the evidence (contract document + representative certificate)
+	// with the configured TSA. The token is returned only after verification.
+	token, err := tsaService.Timestamp(ctx, TimestampedEvidence(contractDocument, certificateData.CertificateDER))
 	if err != nil {
-		return errl.Errorf("failed to timestamp data: %w", err)
+		return errl.Errorf("failed to timestamp registration evidence: %w", err)
 	}
-
-	// Verify the timestamp and retrieve the actual time according to the TSA Service Provider
-	// This is the official time that we will record, instead of our own time
-	genTime, err := tsaService.Verify(timestamp, tstDataToTimestamp)
-	if err != nil {
-		return errl.Errorf("failed to verify timestamp: %w", err)
-	}
-
-	slog.Info("Timestamp verified", "genTime", genTime)
+	timestamp := token.Response
+	// The TSA time is the official time that we record, instead of our own time
+	genTime := token.GenTime
 
 	// Save the contract in a file in the /data/contracts directory
 	// First we assign a unique name based in the date and the organization id
@@ -128,7 +121,7 @@ func (d *Database) CreateRegistration(tsaService *tsaservice.TSAService, certifi
 // UpdateRegistration generates the contract document for the registration identified by organizationIdentifier
 // (the organization_identifier column, which comes from the certificate) and stores it with its timestamp.
 // It returns an error if no registration was updated.
-func (d *Database) UpdateRegistration(tsaService *tsaservice.TSAService, organizationIdentifier string, certificateDER string, formData *models.ContractForm, certUrl string) error {
+func (d *Database) UpdateRegistration(ctx context.Context, tsaService *tsaservice.TSAService, organizationIdentifier string, certificateDER string, formData *models.ContractForm, certUrl string) error {
 	// For a registration with a contract_document fiels empty, we generate the document and set the field
 
 	// Generate the PDF contract in memory
@@ -139,26 +132,12 @@ func (d *Database) UpdateRegistration(tsaService *tsaservice.TSAService, organiz
 		return err
 	}
 
-	// Create a timestamp using the configured TSA Trust Service Provider
-	// The data to be timestamped is the contract document and the certificate
-	buf := bytes.Buffer{}
-	buf.Write(contractDocument)
-	buf.WriteString(certificateDER)
-	tstDataToTimestamp := buf.Bytes()
-
-	timestamp, err := tsaService.Timestamp(tstDataToTimestamp)
+	// Timestamp the evidence with the configured TSA (verified before returning)
+	token, err := tsaService.Timestamp(ctx, TimestampedEvidence(contractDocument, certificateDER))
 	if err != nil {
-		return errl.Errorf("failed to timestamp data: %w", err)
+		return errl.Errorf("failed to timestamp registration evidence: %w", err)
 	}
-
-	// Verify the timestamp and retrieve the actual time according to the TSA Service Provider
-	// This is the official time that we will record, instead of our own time
-	genTime, err := tsaService.Verify(timestamp, tstDataToTimestamp)
-	if err != nil {
-		return errl.Errorf("failed to verify timestamp: %w", err)
-	}
-
-	slog.Info("Timestamp verified", "genTime", genTime)
+	timestamp := token.Response
 
 	// Save the contract in a file in the /data/contracts directory
 	// First we assign a unique name based in the date and the organization id
@@ -315,4 +294,63 @@ func (d *Database) GetRegistrationContract(contractDocumentName string) ([]byte,
 	}
 
 	return contractDocument, nil
+}
+
+// TimestampedEvidence returns the exact bytes that are timestamped for a
+// registration: the contract PDF immediately followed by the representative's
+// certificate as stored in the eidas_cert column (base64 DER text).
+//
+// This is the only evidence format used so far ("legacy v0"); every token in
+// the registrations table was issued over it. It is not self-delimiting, but
+// both parts are stored separately (the PDF file in contract_document and the
+// certificate in eidas_cert), so it can be rebuilt for verification. Changing
+// it would break the verification of historical tokens: a new format must be
+// versioned and stored alongside the token (see tsaservice/README.md).
+func TimestampedEvidence(contractDocument []byte, certificateDER string) []byte {
+	out := make([]byte, 0, len(contractDocument)+len(certificateDER))
+	out = append(out, contractDocument...)
+	return append(out, certificateDER...)
+}
+
+// RegistrationEvidence is the stored evidence of a registration.
+type RegistrationEvidence struct {
+	OrganizationIdentifier string
+	ContractDocumentPath   string
+	CertificateDER         string
+	Timestamp              []byte
+}
+
+// GetRegistrationEvidence reads the stored evidence of a registration.
+func (d *Database) GetRegistrationEvidence(organizationIdentifier string) (*RegistrationEvidence, error) {
+	ev := &RegistrationEvidence{OrganizationIdentifier: organizationIdentifier}
+	var contractPath, cert sql.NullString
+	err := d.db.QueryRow(`SELECT contract_document, eidas_cert, timestamp FROM registrations WHERE organization_identifier = ?`, organizationIdentifier).
+		Scan(&contractPath, &cert, &ev.Timestamp)
+	if err != nil {
+		return nil, errl.Errorf("reading evidence of %s: %w", organizationIdentifier, err)
+	}
+	ev.ContractDocumentPath, ev.CertificateDER = contractPath.String, cert.String
+	return ev, nil
+}
+
+// VerifyRegistrationEvidence rebuilds the timestamped data of a registration
+// from its stored contract file and certificate and verifies the stored token.
+// It does not contact the TSA and never modifies the registration.
+func (d *Database) VerifyRegistrationEvidence(verifier *tsaservice.Verifier, organizationIdentifier string) (*tsaservice.VerifiedToken, error) {
+	ev, err := d.GetRegistrationEvidence(organizationIdentifier)
+	if err != nil {
+		return nil, err
+	}
+	if len(ev.Timestamp) == 0 || ev.ContractDocumentPath == "" {
+		return nil, errl.Errorf("registration %s has no timestamped evidence", organizationIdentifier)
+	}
+	contract, err := os.ReadFile(ev.ContractDocumentPath)
+	if err != nil {
+		return nil, errl.Errorf("reading contract document of %s: %w", organizationIdentifier, err)
+	}
+	vt, err := verifier.Verify(ev.Timestamp, TimestampedEvidence(contract, ev.CertificateDER))
+	if err != nil {
+		return nil, errl.Errorf("evidence of %s does not verify: %w", organizationIdentifier, err)
+	}
+	return vt, nil
 }

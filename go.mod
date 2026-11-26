@@ -11,6 +11,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/lestrrat-go/jwx/v2 v2.1.6
 	github.com/mattn/go-sqlite3 v1.14.32
+	github.com/prometheus/client_golang v1.23.0
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	golang.org/x/crypto v0.49.0
 	golang.org/x/oauth2 v0.31.0
@@ -53,7 +54,6 @@ require (
 	github.com/piprate/json-gold v0.7.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/pquerna/cachecontrol v0.2.0 // indirect
-	github.com/prometheus/client_golang v1.23.0 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.65.0 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect
