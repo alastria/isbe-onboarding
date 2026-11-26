@@ -2,6 +2,7 @@ package certauth
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 	"log/slog"
@@ -178,6 +179,19 @@ func (s *CertAuthServer) Authorization(c *fiber.Ctx) error {
 
 	}
 
+	// The SSO session of a manually approved certificate is only reused while the certificate is
+	// still approved for the same organization and the policy is enabled: withdrawing the approval
+	// ends the single sign-on at the next authorization.
+	if ssoSession != nil && ssoSession.CertificateData != nil && ssoSession.CertificateData.ManuallyApproved {
+		certData := ssoSession.CertificateData
+		approvedID, err := s.db.GetApprovedOrganizationIdentifier(fmt.Sprintf("%x", sha256.Sum256(certData.Certificate.Raw)))
+		if err != nil || !s.manualCertificateApprovalEnabled || approvedID != certData.OrganizationID {
+			slog.Warn("SSO session not reused: the certificate is no longer manually approved", "organization_identifier", certData.OrganizationID, "error", err)
+			s.ssoCache.Delete(ssoSession.SessionID)
+			ssoSession = nil
+		}
+	}
+
 	// Generate an authorization code for this RP authentication process.
 	// The code is associated to an authorization process object which will be used to track
 	// the whole set of interactions with the user.
@@ -200,6 +214,8 @@ func (s *CertAuthServer) Authorization(c *fiber.Ctx) error {
 		authProcess.CertificateData = ssoSession.CertificateData
 		authProcess.Email = ssoSession.Email
 		authProcess.Powers = ssoSession.Powers
+		authProcess.AcceptedCertificate = ssoSession.CertificateData
+		authProcess.CertificateFlowCompleted = ssoSession.CertificateData != nil
 
 		// And redirect back to the caller
 		redirectURL := fmt.Sprintf("%s?code=%s", authProcess.RedirectURI, authProcess.Code)
@@ -288,6 +304,16 @@ func (s *CertAuthServer) APITokenExchange(c *fiber.Ctx) error {
 	// Validate received auth code against the stored one
 	if authProcess.ClientID != tokenReq.ClientID {
 		return errl.Errorf("auth code client mismatch")
+	}
+
+	// Tokens for a certificate authentication are only issued when the flow completed
+	// with a certificate accepted by CertAuth
+	if authProcess.CertificateData != nil && (!authProcess.CertificateAccepted() || !authProcess.CertificateFlowCompleted) {
+		slog.Warn("Token requested for a certificate authentication that was not completed", "auth_code", tokenReq.Code)
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":             "invalid_grant",
+			"error_description": "the authentication was not completed",
+		})
 	}
 
 	// Get the registered relying party
@@ -580,4 +606,17 @@ func (s *CertAuthServer) getAuthProcess(authCode string) (*models.AuthProcess, e
 
 	return authProcess, nil
 
+}
+
+// getAcceptedCertificateProcess returns the authentication process only if CertAuth accepted the
+// certificate that it holds (see pageRequestEmail). The later steps of the certificate flow use it.
+func (s *CertAuthServer) getAcceptedCertificateProcess(authCode string) (*models.AuthProcess, error) {
+	authProcess, err := s.getAuthProcess(authCode)
+	if err != nil {
+		return nil, err
+	}
+	if !authProcess.CertificateAccepted() {
+		return nil, errl.Errorf("the certificate has not been accepted for auth_code: %s", authCode)
+	}
+	return authProcess, nil
 }

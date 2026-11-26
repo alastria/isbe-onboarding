@@ -10,6 +10,7 @@ import (
 // CertificateData represents certificate information for exchange between services
 type CertificateData struct {
 	EIDASCertificate bool               `json:"eidas_certificate"`
+	ManuallyApproved bool               `json:"manually_approved,omitempty"` // Accepted through approved_certificates, never implies EIDASCertificate
 	OrganizationID   string             `json:"organization_identifier"`
 	Subject          *x509util.ELSIName `json:"subject"` // Already processed from Certificate for convenience
 	Issuer           *x509util.ELSIName `json:"issuer"`  // Already processed from Certificate for convenience

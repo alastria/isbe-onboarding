@@ -3,6 +3,10 @@ package certsec
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/elliptic"
+	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
 	"embed"
@@ -49,6 +53,12 @@ type Config struct {
 	// The URL of the CertAuth server, used to redirect the user back to the CertAuth server
 	CertAuthURL             string
 	CertificateBackEndpoint string
+
+	// Accept the certificates of the approved_certificates whitelist without the eIDAS validation
+	ManualApprovalEnabled bool
+
+	// The only header carrying the client certificate. Empty: stdCertHeader, then kubeCertHeader.
+	ClientCertHeader string
 }
 
 // CertSecServer represents the CertSec certificate authentication server
@@ -83,6 +93,12 @@ type CertSecServer struct {
 
 	// The TMF client
 	tmfClient *tmfservice.TMFService
+
+	// Whether the manual certificate approval policy is enabled
+	manualApprovalEnabled bool
+
+	// The only header carrying the client certificate, if configured
+	clientCertHeader string
 }
 
 //go:embed views/*
@@ -138,6 +154,8 @@ func New(
 		CertSecPort:             cfg.CertSecPort,
 		htmlRender:              htmlrender,
 		tmfClient:               tmfClient,
+		manualApprovalEnabled:   cfg.ManualApprovalEnabled,
+		clientCertHeader:        cfg.ClientCertHeader,
 	}
 
 	s.app.Get("/health", func(c *fiber.Ctx) error {
@@ -411,17 +429,21 @@ func (s *CertSecServer) retrieveCertificate(c *fiber.Ctx) (
 	subject *x509util.ELSIName,
 	b64der string,
 	err error) {
-	// Check both the std and kube cert headers to see if we received a certificate
-	certFromHeader := c.Get(stdCertHeader)
-	if certFromHeader != "" {
-		slog.Debug("Certificate data found in standard header", "header", stdCertHeader, "cert_length", len(certFromHeader))
-	} else {
-		certFromHeader = c.Get(kubeCertHeader)
-		if certFromHeader != "" {
-			slog.Debug("Certificate data found in kube header", "header", kubeCertHeader, "cert_length", len(certFromHeader))
-		} else {
-			return nil, nil, nil, "", errl.Errorf("No certificate provided, neither in %s nor in %s", stdCertHeader, kubeCertHeader)
+	// Read the certificate from the header configured for this deployment, without fallback,
+	// or else check both the std and kube cert headers, as before
+	headers := []string{stdCertHeader, kubeCertHeader}
+	if s.clientCertHeader != "" {
+		headers = []string{s.clientCertHeader}
+	}
+	var certFromHeader string
+	for _, header := range headers {
+		if certFromHeader = c.Get(header); certFromHeader != "" {
+			slog.Debug("Certificate data found in header", "header", header, "cert_length", len(certFromHeader))
+			break
 		}
+	}
+	if certFromHeader == "" {
+		return nil, nil, nil, "", errl.Errorf("No certificate provided in %s", strings.Join(headers, " nor in "))
 	}
 
 	// Check that we received enough data
@@ -457,12 +479,6 @@ func (s *CertSecServer) retrieveCertificate(c *fiber.Ctx) (
 		b64der = certFromHeader
 	}
 
-	// For testing we accept personal certificates, but we do not accept that both
-	// the organizationIdentifier and the serialNumber are empty.
-	if subject.OrganizationIdentifier == "" && subject.SerialNumber == "" {
-		return nil, nil, nil, "", errl.Errorf("Both organizationIdentifier and serialNumber are empty")
-	}
-
 	// Check certificate expiration
 	now := time.Now()
 	if now.Before(cert.NotBefore) {
@@ -473,6 +489,41 @@ func (s *CertSecServer) retrieveCertificate(c *fiber.Ctx) (
 	}
 
 	return cert, issuer, subject, b64der, nil
+}
+
+// checkApprovedCertificate makes the minimal checks for a certificate trusted through the
+// approved_certificates whitelist, which is not validated by EU DSS. The validity period has been
+// checked already, and the reverse proxy proved the possession of the private key (mTLS).
+func checkApprovedCertificate(cert *x509.Certificate, subject *x509util.ELSIName, approvedID string) error {
+	// The approval is for one organization: a certificate naming a different one is rejected
+	if subject.OrganizationIdentifier != "" && subject.OrganizationIdentifier != approvedID {
+		return errl.Errorf("organizationIdentifier %q does not match the approved %q", subject.OrganizationIdentifier, approvedID)
+	}
+	if cert.IsCA {
+		return errl.Errorf("it is a CA certificate")
+	}
+	if cert.KeyUsage != 0 && cert.KeyUsage&x509.KeyUsageDigitalSignature == 0 {
+		return errl.Errorf("Key Usage does not include digitalSignature")
+	}
+	if len(cert.ExtKeyUsage) > 0 || len(cert.UnknownExtKeyUsage) > 0 {
+		if !slices.Contains(cert.ExtKeyUsage, x509.ExtKeyUsageClientAuth) && !slices.Contains(cert.ExtKeyUsage, x509.ExtKeyUsageAny) {
+			return errl.Errorf("Extended Key Usage does not include clientAuth")
+		}
+	}
+	switch key := cert.PublicKey.(type) {
+	case *rsa.PublicKey:
+		if key.N.BitLen() < 2048 {
+			return errl.Errorf("RSA key of %d bits, at least 2048 required", key.N.BitLen())
+		}
+	case *ecdsa.PublicKey:
+		if key.Curve != elliptic.P256() && key.Curve != elliptic.P384() && key.Curve != elliptic.P521() {
+			return errl.Errorf("unsupported elliptic curve")
+		}
+	case ed25519.PublicKey:
+	default:
+		return errl.Errorf("unsupported public key type %T", cert.PublicKey)
+	}
+	return nil
 }
 
 // handleCertificateAuth handles the certificate authentication endpoint.
@@ -507,6 +558,10 @@ func (s *CertSecServer) handleCertificateAuth(c *fiber.Ctx) error {
 
 	slog.Info("Certificate authentication requested", "auth_code", authCode)
 
+	// Whatever CertAuth accepted before, a new certificate has to be validated again
+	authProcess.AcceptedCertificate = nil
+	authProcess.CertificateFlowCompleted = false
+
 	sendBackError := func(err error) error {
 		// Redirect back to certauth with an error
 		authProcess.ErrorInProcess = err
@@ -520,14 +575,38 @@ func (s *CertSecServer) handleCertificateAuth(c *fiber.Ctx) error {
 		return sendBackError(errl.Errorf("retrieving certificate: %w", err))
 	}
 
-	// Certificates without organizationIdentifier can be manually approved to act on behalf of an organization.
-	// In that case we set the approved identifier, so the rest of the flow treats it as an organizational certificate.
-	if subject.OrganizationIdentifier == "" {
-		fingerprint := fmt.Sprintf("%x", sha256.Sum256(cert.Raw))
-		approvedID, err := s.db.GetApprovedOrganizationIdentifier(fingerprint)
+	// Look up the approved_certificates whitelist: always when the manual approval policy is
+	// enabled, and otherwise only for certificates without organizationIdentifier, as before.
+	// A failure of the lookup rejects the certificate.
+	fingerprint := fmt.Sprintf("%x", sha256.Sum256(cert.Raw))
+	approvedID := ""
+	if s.manualApprovalEnabled || subject.OrganizationIdentifier == "" {
+		approvedID, err = s.db.GetApprovedOrganizationIdentifier(fingerprint)
 		if err != nil {
 			return sendBackError(errl.Errorf("checking approved certificate: %w", err))
 		}
+	}
+
+	// With the policy enabled, an approved certificate is trusted for its approved organization
+	// instead of being validated as eIDAS by CertAuth (no EU DSS, CA chain or CRL checks).
+	manuallyApproved := s.manualApprovalEnabled && approvedID != ""
+	if manuallyApproved {
+		if err := checkApprovedCertificate(cert, subject, approvedID); err != nil {
+			return sendBackError(errl.Errorf("approved certificate %s: %w", fingerprint, err))
+		}
+		slog.Info("Certificate manually approved", "auth_code", authCode, "certificate_sha256", fingerprint, "organization_identifier", approvedID)
+		subject.OrganizationIdentifier = approvedID
+	}
+
+	// For testing we accept personal certificates, but we do not accept that both
+	// the organizationIdentifier and the serialNumber are empty.
+	if subject.OrganizationIdentifier == "" && subject.SerialNumber == "" {
+		return sendBackError(errl.Errorf("retrieving certificate: Both organizationIdentifier and serialNumber are empty"))
+	}
+
+	// Certificates without organizationIdentifier can be manually approved to act on behalf of an organization.
+	// In that case we set the approved identifier, so the rest of the flow treats it as an organizational certificate.
+	if subject.OrganizationIdentifier == "" {
 		if approvedID != "" {
 			slog.Info("Using approved organization identifier", "auth_code", authCode, "certificate_sha256", fingerprint, "organization_identifier", approvedID)
 			subject.OrganizationIdentifier = approvedID
@@ -577,6 +656,8 @@ func (s *CertSecServer) handleCertificateAuth(c *fiber.Ctx) error {
 		Certificate:     cert,
 		CertificateDER:  b64der,
 	}
+
+	certData.ManuallyApproved = manuallyApproved
 
 	// Set the certificate data in the auth request for later retrieval
 	authProcess.CertificateData = certData

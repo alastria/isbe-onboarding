@@ -55,7 +55,16 @@
             </div>
         </div>
 
-        {{if not .certData.EIDASCertificate}}
+        {{ if .certData.ManuallyApproved }}
+        <div class="ui blue icon message">
+            <i class="check circle outline icon"></i>
+            <div class="content">
+                <div class="header">Certificado aprobado manualmente</div>
+                Este certificado no es un certificado cualificado eIDAS. Se acepta porque ISBE lo ha aprobado
+                expresamente para la organización {{ .certData.OrganizationID }}.
+            </div>
+        </div>
+        {{ else if not .certData.EIDASCertificate }}
         <div class="ui yellow icon message">
             <i class="exclamation triangle icon"></i>
             <div class="content">

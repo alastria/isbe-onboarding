@@ -75,6 +75,8 @@ func New(adminPassword string, cfg Config) (*Server, error) {
 		CertificateBackEndpoint: certauth.CertificateBackEndpoint,
 		CertSecURL:              cfg.CertAuthConfig.CertSecURL,
 		CertSecPort:             cfg.CertAuthConfig.CertSecPort,
+		ManualApprovalEnabled:   cfg.CertAuthConfig.ManualCertificateApprovalEnabled,
+		ClientCertHeader:        cfg.CertAuthConfig.ClientCertHeader,
 	}
 	certsecServer, err := certsec.New(db, authprocCache, ssoCache, newCertSecConfig)
 	if err != nil {

@@ -55,6 +55,18 @@ type AuthProcess struct {
 	CredentialData        map[string]any   `json:"credential_data,omitempty"`
 	FinishedWalletAuth    bool             `json:"finished_wallet_auth,omitempty"`
 	ErrorInProcess        error            `json:"-"`
+
+	// AcceptedCertificate is the certificate data that CertAuth validated. The later steps of the
+	// flow require it to be the current CertificateData (see CertificateAccepted).
+	AcceptedCertificate *CertificateData `json:"-"`
+	// CertificateFlowCompleted is set when the code is handed back to the RP after a certificate
+	// authentication. Tokens for a certificate authentication are only issued once it is set.
+	CertificateFlowCompleted bool `json:"-"`
+}
+
+// CertificateAccepted reports whether CertAuth validated the certificate currently held.
+func (a *AuthProcess) CertificateAccepted() bool {
+	return a.CertificateData != nil && a.AcceptedCertificate == a.CertificateData
 }
 
 // SSOSession represents a single sign-on session, stored in-memory in the server
