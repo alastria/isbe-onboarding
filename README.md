@@ -47,6 +47,60 @@ The following environment variables can be used to override configuration values
 | `TSA_REVOCATION_CHECK` | `none` or `crl` | `none` |
 | `MANAGEMENT_URL` | Management Service URL | Profile dependent |
 | `CERTAUTH_LOGS_NOCOLOR` | Set to "true" to disable log coloring | `false` |
+| `MANUAL_CERTIFICATE_APPROVAL_ENABLED` | Set to "true" to accept the certificates of `approved_certificates` without eIDAS validation (see below) | `false` |
+| `CLIENT_CERT_HEADER` | The only header read for the client certificate. Required when the manual approval is enabled | Unset: `tls-client-certificate`, then `X-Amzn-Mtls-Clientcert` |
+
+## Manually approved certificates
+
+Some organizations hold certificates that are not qualified eIDAS certificates, or that lack the
+usual attributes (`organizationIdentifier`, `serialNumber`). ISBE can approve such a certificate
+explicitly for one organization in the `approved_certificates` table. When the policy is enabled,
+that approval is a source of trust **alternative** to the eIDAS validation:
+
+| | eIDAS validation | Manual approval |
+|---|---|---|
+| Trust comes from | EU Trusted Lists, via EU DSS | The `approved_certificates` row (SHA-256 of the certificate) |
+| Organization | `organizationIdentifier` of the certificate | `organization_identifier` of the row (it must match the certificate, if the certificate has one) |
+| Checked by the application | Validity period, EU DSS (chain, qualification, revocation) | Validity period, key strength (RSA ≥ 2048, P-256/384/521, Ed25519), key usage (`digitalSignature`, `clientAuth` when present), not a CA |
+| Revocation | Checked by EU DSS | **Manual**: ISBE withdraws the approval |
+| Marked as eIDAS (`EIDASCertificate`) | Yes | Never |
+
+Certificates that are not approved follow the usual flow. Being approved never grants
+administration rights. If the whitelist cannot be queried, the certificate is rejected.
+
+**Enabling it.** Set `MANUAL_CERTIFICATE_APPROVAL_ENABLED=true` and `CLIENT_CERT_HEADER` to the
+header that the reverse proxy of that deployment sets (`tls-client-certificate` with the Caddy
+configuration above). It is disabled by default and is enabled per environment. Before enabling it
+in production, check that:
+
+- the reverse proxy requires the client certificate in the TLS handshake (proof of possession of
+  the private key);
+- the reverse proxy always sets `CLIENT_CERT_HEADER` from that handshake, never forwards a value
+  sent by the client, and removes any other client certificate header;
+- the CertSec port can only be reached through that reverse proxy;
+- the manual revocation procedure below has been agreed.
+
+**Approving a certificate**, after verifying the identity of the organization out of band
+(`certificate_sha256` is the SHA-256 of the DER certificate, lowercase hex, e.g.
+`openssl x509 -in cert.pem -outform DER | sha256sum`):
+
+```sql
+INSERT INTO approved_certificates (certificate_sha256, organization_identifier, comment)
+VALUES ('<sha256>', 'NTRNL-12345678', 'Approved by <who> on <date>: <how it was verified>');
+```
+
+**Manual revocation.** ISBE does not check the revocation of approved certificates, so it has to
+withdraw the approval as soon as the certificate is compromised, revoked or no longer represents
+the organization:
+
+1. `DELETE FROM approved_certificates WHERE certificate_sha256 = '<sha256>';` on the live database.
+   From then on the certificate cannot authenticate again through the manual approval, and an SSO
+   session opened with it is discarded at its next use.
+2. Limitations: an authentication process that already accepted the certificate can still finish
+   (up to 15 minutes), and the tokens already issued stay valid until they expire (the
+   `token_expiry` of the relying party). Restarting the service ends every
+   SSO session and authentication process in progress, as they are kept in memory.
+3. The registration of the organization is not removed; deal with it separately if needed.
 
 ## Observability
 
