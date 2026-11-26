@@ -761,3 +761,49 @@ func TestCertificateNotAuthorizedMessage(t *testing.T) {
 		}
 	}
 }
+
+// A manually approved certificate whose givenName and surname come from its approval has that
+// person as representative, not its common name (here the name of the organization).
+func TestRepresentativeNameFromTheApproval(t *testing.T) {
+	e := newTestEnv(t, types.PROFILE_ISBE_PRO, "")
+	cd := newCertData(t, testOrgID, true)
+	cd.Subject.GivenName, cd.Subject.Surname = "Ana", "Lopez" // completed by CertSec from the approval
+	if _, err := e.raw.Exec(`INSERT INTO approved_certificates (certificate_sha256, organization_identifier, given_name, surname) VALUES (?, ?, 'Ana', 'Lopez')`, fingerprint(cd), testOrgID); err != nil {
+		t.Fatal(err)
+	}
+	p := e.newAuthProcess(cd, true, false)
+	_, attempt, _ := p.CertificateResult()
+	p.SetEmailVerification(attempt, "user@example.com", "123456")
+	_, body := e.do(t, postForm(verifyEmailCodeEndpoint, url.Values{"auth_code": {p.Code}, "email": {"user@example.com"}, "verification_code": {"123456"}}))
+	if !strings.Contains(body, `name="representative_name" value="Ana Lopez"`) {
+		t.Fatalf("representative is not the approved person: %.300s", body)
+	}
+}
+
+// Changing the approved personal attributes invalidates the processes and SSO sessions that used them.
+func TestChangedApprovedIdentityRejected(t *testing.T) {
+	e := newTestEnv(t, types.PROFILE_ISBE_PRO, "")
+	cd := newCertData(t, testOrgID, true)
+	cd.Subject.SerialNumber = "12345678Z" // completed by CertSec from the approval
+	if _, err := e.raw.Exec(`INSERT INTO approved_certificates (certificate_sha256, organization_identifier, serial_number) VALUES (?, ?, '12345678Z')`, fingerprint(cd), testOrgID); err != nil {
+		t.Fatal(err)
+	}
+	if !e.authorizeWithSSO(t, cd) {
+		t.Fatalf("SSO session of an approved certificate not reused")
+	}
+	for _, change := range []string{`serial_number = '87654321X'`, `serial_number = NULL`, `given_name = 'Ana'`} {
+		if _, err := e.raw.Exec(`UPDATE approved_certificates SET serial_number = '12345678Z', given_name = NULL`); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := e.raw.Exec(`UPDATE approved_certificates SET ` + change); err != nil {
+			t.Fatal(err)
+		}
+		if e.authorizeWithSSO(t, cd) {
+			t.Fatalf("%s: SSO session reused", change)
+		}
+		if p, body := e.certificateBack(t, cd); !strings.Contains(body, "no longer approved") {
+			accepted, _ := p.AcceptedCertificate()
+			t.Fatalf("%s: process accepted=%v", change, accepted != nil)
+		}
+	}
+}

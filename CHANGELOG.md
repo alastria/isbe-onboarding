@@ -14,6 +14,11 @@ y el proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
   todos los perfiles. Nunca se marcan como eIDAS. Antes de desplegar hay que revisar y volver a
   aprobar las filas existentes de `approved_certificates` (ver README).
 - El formulario del contrato pide el nombre del representante cuando el certificado no lo incluye.
+- `approved_certificates` admite `serial_number`, `given_name` y `surname` opcionales, verificados por
+  ISBE en la aprobación. Solo completan los atributos que le faltan al certificado, tal como se
+  introducen, y permiten emitir `user_identifier` y el nombre del representante en los tokens. Un
+  valor distinto del que trae el certificado rechaza la aprobación, y cambiarlos invalida los procesos
+  y sesiones SSO que usaban los anteriores.
 
 ### Cambiado
 

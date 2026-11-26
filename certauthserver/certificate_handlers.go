@@ -634,6 +634,11 @@ func (s *CertAuthServer) verifyEmailCodeAndPresentContractForm(c *fiber.Ctx) err
 	// representative: the user enters the name, prefilled with the common name unless it is
 	// just the name of the organization.
 	representativeNameEditable := certData.Subject.GivenName == "" && certData.Subject.Surname == ""
+	// A manually approved certificate may get givenName and surname from its approval, while its
+	// common name may be just the name of the organization: the representative is that person.
+	if certData.ManuallyApproved && !representativeNameEditable {
+		formData.RepresentativeName = strings.TrimSpace(certData.Subject.GivenName + " " + certData.Subject.Surname)
+	}
 	if representativeNameEditable && strings.EqualFold(strings.TrimSpace(formData.RepresentativeName), strings.TrimSpace(formData.OrganizationName)) {
 		formData.RepresentativeName = ""
 	}

@@ -300,3 +300,40 @@ func TestAdminPages(t *testing.T) {
 		}
 	}
 }
+
+// The personal attributes of an approval only complete the ones the certificate lacks, as entered.
+func TestApprovedPersonalAttributes(t *testing.T) {
+	cases := []struct {
+		name                       string
+		cert                       testCert
+		approval                   [3]any // serial_number, given_name, surname of the row (nil: NULL)
+		serial, givenName, surname string
+	}{
+		{"completed from the approval, as entered", testCert{}, [3]any{"12345678Z", "Ana", "López"}, "12345678Z", "Ana", "López"},
+		{"partially completed", testCert{}, [3]any{"PNONL-1234", nil, nil}, "PNONL-1234", "", ""},
+		{"the certificate value is kept", testCert{serial: "IDCNL-1234"}, [3]any{"IDCNL-1234", "Ana", "López"}, "IDCNL-1234", "Ana", "López"},
+		{"an existing row without them", testCert{serial: "IDCNL-1234"}, [3]any{nil, nil, nil}, "IDCNL-1234", "", ""},
+		{"a different value than the certificate", testCert{serial: "IDCNL-1234"}, [3]any{"idcnl-1234", nil, nil}, "", "", ""}, // rejected
+	}
+	e := newTestEnv(t)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cert, fp := tc.cert.build(t)
+			if _, err := e.raw.Exec(`INSERT INTO approved_certificates (certificate_sha256, organization_identifier, serial_number, given_name, surname) VALUES (?, ?, ?, ?, ?)`,
+				fp, "NTRNL-12345678", tc.approval[0], tc.approval[1], tc.approval[2]); err != nil {
+				t.Fatalf("approving certificate: %v", err)
+			}
+			cd, _, err := e.authenticate(t, header, cert).CertificateResult()
+			if rejected := tc.name == "a different value than the certificate"; rejected || err != nil {
+				if !rejected || err == nil || !strings.Contains(err.Error(), "serialNumber of the certificate does not match") {
+					t.Fatalf("rejected=%v: %v", rejected, err)
+				}
+				return
+			}
+			s := cd.Subject
+			if s.SerialNumber != tc.serial || s.GivenName != tc.givenName || s.Surname != tc.surname {
+				t.Fatalf("got %q %q %q, want %q %q %q", s.SerialNumber, s.GivenName, s.Surname, tc.serial, tc.givenName, tc.surname)
+			}
+		})
+	}
+}

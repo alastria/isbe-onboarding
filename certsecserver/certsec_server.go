@@ -559,20 +559,23 @@ func (s *CertSecServer) handleCertificateAuth(c *fiber.Ctx) error {
 
 	// Look up the approved_certificates whitelist. A failure of the lookup rejects the certificate.
 	fingerprint := fmt.Sprintf("%x", sha256.Sum256(cert.Raw))
-	approvedID, err := s.db.GetApprovedOrganizationIdentifier(fingerprint)
+	approved, err := s.db.GetApprovedCertificate(fingerprint)
 	if err != nil {
 		return sendBackError(errl.Errorf("checking approved certificate: %w", err))
 	}
 
 	// An approved certificate is trusted for its approved organization instead of being validated
 	// as eIDAS by CertAuth (no EU DSS, CA chain or CRL checks)
-	manuallyApproved := approvedID != ""
+	manuallyApproved := approved != nil && approved.OrganizationIdentifier != ""
 	if manuallyApproved {
-		if err := checkApprovedCertificate(cert, subject, approvedID); err != nil {
+		if err := checkApprovedCertificate(cert, subject, approved.OrganizationIdentifier); err != nil {
 			return sendBackError(errl.Errorf("approved certificate %s: %w", fingerprint, err))
 		}
-		slog.Info("Certificate manually approved", "auth_code", authCode, "certificate_sha256", fingerprint, "organization_identifier", approvedID)
-		subject.OrganizationIdentifier = approvedID
+		if err := approved.CompleteSubject(subject); err != nil {
+			return sendBackError(errl.Errorf("approved certificate %s: %w", fingerprint, err))
+		}
+		slog.Info("Certificate manually approved", "auth_code", authCode, "certificate_sha256", fingerprint, "organization_identifier", approved.OrganizationIdentifier)
+		subject.OrganizationIdentifier = approved.OrganizationIdentifier
 	}
 
 	// For testing we accept personal certificates, but we do not accept that both

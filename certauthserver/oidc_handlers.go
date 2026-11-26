@@ -14,6 +14,7 @@ import (
 
 	"github.com/alastria/isbe-onboarding/internal/errl"
 	"github.com/alastria/isbe-onboarding/internal/models"
+	"github.com/alastria/isbe-onboarding/internal/util/x509util"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/utils"
 	jwtV5 "github.com/golang-jwt/jwt/v5"
@@ -624,17 +625,27 @@ func (s *CertAuthServer) getAcceptedCertificateProcess(authCode string) (*models
 }
 
 // stillManuallyApproved reports whether a manually approved certificate is still valid and
-// approved for the same organization. A whitelist error means no.
+// approved for the same organization and the same personal attributes (those of the certificate
+// completed with the approval). A whitelist error means no.
 func (s *CertAuthServer) stillManuallyApproved(certData *models.CertificateData) bool {
 	now := time.Now()
-	if certData.Certificate == nil ||
+	if certData.Certificate == nil || certData.Subject == nil ||
 		now.Before(certData.Certificate.NotBefore) || now.After(certData.Certificate.NotAfter) {
 		return false
 	}
-	approvedID, err := s.db.GetApprovedOrganizationIdentifier(fmt.Sprintf("%x", sha256.Sum256(certData.Certificate.Raw)))
+	approved, err := s.db.GetApprovedCertificate(fmt.Sprintf("%x", sha256.Sum256(certData.Certificate.Raw)))
 	if err != nil {
 		slog.Error("checking approved certificate", "error", err)
 		return false
 	}
-	return approvedID == certData.OrganizationID
+	if approved == nil || approved.OrganizationIdentifier == "" || approved.OrganizationIdentifier != certData.OrganizationID {
+		return false
+	}
+	_, _, subject, err := x509util.ParseEIDASCertDer(certData.Certificate.Raw)
+	if err != nil || approved.CompleteSubject(subject) != nil {
+		return false
+	}
+	return subject.SerialNumber == certData.Subject.SerialNumber &&
+		subject.GivenName == certData.Subject.GivenName &&
+		subject.Surname == certData.Subject.Surname
 }

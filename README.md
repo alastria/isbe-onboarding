@@ -99,6 +99,19 @@ INSERT INTO approved_certificates (certificate_sha256, organization_identifier, 
 VALUES ('<sha256>', 'NTRNL-12345678', 'Approved by <who> on <date>: <how it was verified>');
 ```
 
+Optionally, the row can also hold the `serial_number`, `given_name` and `surname` of the certificate
+holder, as verified by ISBE during the approval. They only complete the attributes the certificate
+lacks, and they are used exactly as entered, without any format check or normalization. If the
+certificate has the attribute with a different value, the approval is rejected. Changing them
+invalidates the authentication processes and SSO sessions that used the previous values. They give the tokens the `user_identifier`, `serial_number`,
+`given_name`, `family_name` and `user` claims required, for example, to issue credentials. Leave them
+NULL when they were not verified: existing rows keep working as before.
+
+```sql
+UPDATE approved_certificates SET serial_number = '<verified identifier>', given_name = '<given name>',
+    surname = '<surname>' WHERE certificate_sha256 = '<sha256>';
+```
+
 **Manual revocation.** ISBE does not check the revocation of approved certificates, so it must
 withdraw the approval as soon as the certificate is compromised, revoked or no longer represents
 the organization:
